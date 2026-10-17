@@ -1,0 +1,10 @@
+{
+  "appId": "com.gymlog.app",
+  "appName": "健身记录",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false
+    }
+  }
+}
