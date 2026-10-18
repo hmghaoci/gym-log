@@ -1,0 +1,6 @@
+{
+  "name": "GymLog - 智能力量训练与健身记录",
+  "description": "专注力量训练与增肌的专业健身记录工具：动作图解与动画指南、组间智能休息计时器、上次成绩自动带入、训练容量与历史统计、周期化训练周计划。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
