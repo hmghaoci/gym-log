@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
 export const DEFAULT_TEMPLATES: WorkoutTemplate[] = [
   {
     id: 'tpl-push',
-    name: '推日 (Push Day)',
+    name: '推日 (胸肩三头)',
     description: '胸大肌、三角肌前束/中束、肱三头肌高强度泵感组合',
     targetDay: 1, // Monday
     exercises: [
@@ -45,7 +45,7 @@ export const DEFAULT_TEMPLATES: WorkoutTemplate[] = [
   },
   {
     id: 'tpl-pull',
-    name: '拉日 (Pull Day)',
+    name: '拉日 (背阔二头)',
     description: '背阔肌、上背斜方肌、肱二头肌立体打造',
     targetDay: 3, // Wednesday
     exercises: [
@@ -58,7 +58,7 @@ export const DEFAULT_TEMPLATES: WorkoutTemplate[] = [
   },
   {
     id: 'tpl-legs',
-    name: '腿日 (Leg Day)',
+    name: '腿日 (深蹲硬拉)',
     description: '深蹲主导，股四头肌、腘绳肌与臀部核心力量强化',
     targetDay: 5, // Friday
     exercises: [
@@ -70,7 +70,7 @@ export const DEFAULT_TEMPLATES: WorkoutTemplate[] = [
   },
   {
     id: 'tpl-upper',
-    name: '上肢综合 (Upper Focus)',
+    name: '上肢综合 (胸背手臂)',
     description: '上下胸、背部厚度与手臂弱点全面补强',
     targetDay: 6, // Saturday
     exercises: [
@@ -226,8 +226,17 @@ export function loadTemplates(): WorkoutTemplate[] {
       saveTemplates(DEFAULT_TEMPLATES);
       return DEFAULT_TEMPLATES;
     }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_TEMPLATES;
+    const parsed: WorkoutTemplate[] = JSON.parse(raw);
+    const cleaned = parsed.map((t) => ({
+      ...t,
+      name: t.name
+        .replace(/\(Push Day\)/gi, '(胸肩三头)')
+        .replace(/\(Pull Day\)/gi, '(背阔二头)')
+        .replace(/\(Leg Day\)/gi, '(深蹲硬拉)')
+        .replace(/\(Upper Focus\)/gi, '(胸背手臂)')
+        .replace(/\s*\([a-zA-Z\s]+\)/g, ''),
+    }));
+    return Array.isArray(cleaned) ? cleaned : DEFAULT_TEMPLATES;
   } catch {
     return DEFAULT_TEMPLATES;
   }

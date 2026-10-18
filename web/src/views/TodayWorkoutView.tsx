@@ -198,28 +198,31 @@ export const TodayWorkoutView: React.FC<TodayWorkoutViewProps> = ({
                   isCurrent
                     ? theme.isDark
                       ? 'bg-white/10 border-white/30 text-white shadow-md'
-                      : 'bg-slate-900 text-white border-slate-900 shadow-md'
+                      : 'bg-white text-slate-900 shadow-md ring-2 ring-sky-500/25'
                     : theme.isDark
                     ? 'bg-white/[0.02] border-white/5 text-zinc-400'
-                    : 'bg-slate-50 border-slate-200/80 text-slate-600'
+                    : 'bg-white border-slate-200/80 text-slate-700'
                 }`}
                 style={
                   isCurrent
                     ? {
                         borderTop: `3px solid ${theme.accentColor}`,
+                        borderColor: !theme.isDark ? `${theme.accentColor}50` : undefined,
                       }
                     : {}
                 }
               >
                 <div
                   className={`text-[11px] font-bold ${
-                    isCurrent ? (theme.isDark ? 'text-white' : 'text-white') : 'text-zinc-500'
+                    isCurrent
+                      ? theme.isDark ? 'text-white' : 'text-slate-900'
+                      : theme.isDark ? 'text-zinc-500' : 'text-slate-500'
                   }`}
                 >
                   {SHORT_DAYS_ZH[dayIdx]}
                 </div>
                 <div className="text-xs font-semibold truncate mt-1">
-                  {tpl ? tpl.name.split(' ')[0] : '休息'}
+                  {tpl ? tpl.name.split(' ')[0].replace(/\s*\([a-zA-Z\s]+\)/g, '') : '休息'}
                 </div>
               </div>
             );

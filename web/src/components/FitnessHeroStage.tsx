@@ -51,7 +51,13 @@ export const FitnessHeroStage: React.FC<FitnessHeroStageProps> = ({
 
       <div className="relative z-10 max-w-4xl mx-auto text-center space-y-5">
         {/* Top Kicker Label (Clean Unboxed & Subtle Glow) */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/10 bg-white/[0.04] backdrop-blur-md text-xs font-medium">
+        <div
+          className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-medium backdrop-blur-md ${
+            theme.isDark
+              ? 'border-white/10 bg-white/[0.04]'
+              : 'border-slate-200 bg-white/80 shadow-sm'
+          }`}
+        >
           <span
             className="w-2 h-2 rounded-full animate-pulse"
             style={{ backgroundColor: theme.accentColor }}
@@ -61,7 +67,7 @@ export const FitnessHeroStage: React.FC<FitnessHeroStageProps> = ({
           </span>
         </div>
 
-        {/* Grand Headline (Inspired by "Finance That Grows with Your Ambition" / "We manage the Finance process") */}
+        {/* Grand Headline */}
         <h1
           className={`text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] ${
             theme.isDark ? 'text-white' : 'text-slate-900'
@@ -72,7 +78,9 @@ export const FitnessHeroStage: React.FC<FitnessHeroStageProps> = ({
           <span
             className="bg-clip-text text-transparent bg-gradient-to-r"
             style={{
-              backgroundImage: `linear-gradient(to right, ${theme.accentColor}, #ffffff)`,
+              backgroundImage: `linear-gradient(to right, ${theme.accentColor}, ${
+                theme.isDark ? '#ffffff' : '#0284c7'
+              })`,
             }}
           >
             重塑超量恢复
