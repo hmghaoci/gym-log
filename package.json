@@ -1,7 +1,7 @@
 {
   "name": "gym-log",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "离线健身记录。动作数据来自 hasaneyldrm/exercises-dataset。",
   "scripts": {
     "android": "npx cap sync android && cd android && gradlew.bat assembleDebug",

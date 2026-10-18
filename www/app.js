@@ -1,4 +1,4 @@
-const APP_VERSION = '1.2.0'
+const APP_VERSION = '1.3.0'
 const UPDATE_URLS = [
   'https://github.com/hmghaoci/gym-log/releases/latest/download/latest.json',
   'https://raw.githubusercontent.com/hmghaoci/gym-log/main/release/latest.json',
@@ -6,6 +6,8 @@ const UPDATE_URLS = [
 const STORE_KEY = 'gymlog.v1'
 const REST_KEY = 'gymlog.rest'
 const LANG_KEY = 'gymlog.lang'
+const REST_SOUND_KEY = 'gymlog.restSound'
+/** UI 会话占用 gymlog.theme，功能侧勿用 */
 
 const I18N = {
   zh: {
@@ -62,6 +64,23 @@ const I18N = {
     mediaCredit: '动作动画 © Gym visual',
     addToTemplate: '加动作',
     removeTplEx: '拿掉',
+    backup: '备份',
+    exportData: '导出记录',
+    importData: '导入记录',
+    exportOk: '已导出备份文件',
+    importOk: '导入成功',
+    importBad: '文件不是有效的备份',
+    importConfirm: '导入会覆盖本机记录，再点一次确认',
+    restSound: '休息提示音',
+    restDone: '休息结束，开始下一组',
+    on: '开',
+    off: '关',
+    progress: '进步',
+    progressTitle: '动作进步',
+    progressPick: '选一个练过的动作',
+    progressEmpty: '还没有可统计的动作。',
+    progressBest: (kg, reps) => `最好 ${kg || 0} 公斤 × ${reps || 0} 次`,
+    progressSession: (n) => `近 ${n} 次训练`,
     body: {
       chest: '胸', back: '背', shoulders: '肩', 'upper arms': '手臂', 'lower arms': '前臂',
       'upper legs': '大腿', 'lower legs': '小腿', waist: '核心', cardio: '有氧', neck: '颈部',
@@ -135,6 +154,23 @@ const I18N = {
     mediaCredit: 'Exercise media © Gym visual',
     addToTemplate: 'Add exercise',
     removeTplEx: 'Remove',
+    backup: 'Backup',
+    exportData: 'Export',
+    importData: 'Import',
+    exportOk: 'Backup file saved',
+    importOk: 'Import done',
+    importBad: 'Not a valid backup file',
+    importConfirm: 'Import replaces local data. Tap again to confirm',
+    restSound: 'Rest alert',
+    restDone: 'Rest over — next set',
+    on: 'On',
+    off: 'Off',
+    progress: 'Progress',
+    progressTitle: 'Progress',
+    progressPick: 'Pick an exercise you trained',
+    progressEmpty: 'No tracked exercises yet.',
+    progressBest: (kg, reps) => `Best ${kg || 0} kg × ${reps || 0}`,
+    progressSession: (n) => `Last ${n} sessions`,
     body: {
       chest: 'Chest', back: 'Back', shoulders: 'Shoulders', 'upper arms': 'Arms', 'lower arms': 'Forearms',
       'upper legs': 'Legs', 'lower legs': 'Calves', waist: 'Core', cardio: 'Cardio', neck: 'Neck',
@@ -159,6 +195,9 @@ const state = {
   draft: null,
   pickFor: 'session',
   openGif: null,
+  progressId: null,
+  importArmed: false,
+  audioCtx: null,
 }
 
 const MEDIA_BASE = 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/'
@@ -473,6 +512,45 @@ function completeSet(exIndex, setIndex) {
   render()
 }
 
+function restSoundOn() {
+  return localStorage.getItem(REST_SOUND_KEY) !== '0'
+}
+
+function setRestSound(on) {
+  localStorage.setItem(REST_SOUND_KEY, on ? '1' : '0')
+}
+
+function playRestBeep() {
+  if (!restSoundOn()) return
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    if (!Ctx) return
+    if (!state.audioCtx) state.audioCtx = new Ctx()
+    const ctx = state.audioCtx
+    if (ctx.state === 'suspended') ctx.resume()
+    const now = ctx.currentTime
+    ;[0, 0.18, 0.36].forEach(delay => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = 880
+      gain.gain.setValueAtTime(0.0001, now + delay)
+      gain.gain.exponentialRampToValueAtTime(0.2, now + delay + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.14)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now + delay)
+      osc.stop(now + delay + 0.16)
+    })
+  } catch { /* ignore */ }
+}
+
+function notifyRestDone() {
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
+  playRestBeep()
+  toast(t('restDone'))
+}
+
 function startRest() {
   clearInterval(state.restTimer)
   state.restLeft = restSec()
@@ -482,10 +560,97 @@ function startRest() {
       clearInterval(state.restTimer)
       state.restTimer = null
       state.restLeft = 0
-      if (navigator.vibrate) navigator.vibrate(200)
+      notifyRestDone()
     }
     render()
   }, 1000)
+}
+
+function exportBackup() {
+  const payload = {
+    app: 'gym-log',
+    version: APP_VERSION,
+    exportedAt: Date.now(),
+    store: loadStore(),
+    rest: restSec(),
+    lang: state.lang,
+    restSound: restSoundOn() ? '1' : '0',
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const a = document.createElement('a')
+  const stamp = new Date().toISOString().slice(0, 10)
+  a.href = URL.createObjectURL(blob)
+  a.download = `gym-log-backup-${stamp}.json`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+  toast(t('exportOk'))
+}
+
+function importBackupFile(file) {
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(String(reader.result || ''))
+      const store = data.store || data
+      if (!store || !Array.isArray(store.workouts)) throw new Error('bad')
+      if (!Array.isArray(store.templates)) store.templates = []
+      saveStore({ workouts: store.workouts, templates: store.templates })
+      if (data.rest != null) setRestSec(data.rest)
+      if (data.lang === 'en' || data.lang === 'zh') {
+        state.lang = data.lang
+        localStorage.setItem(LANG_KEY, state.lang)
+        document.documentElement.lang = state.lang === 'zh' ? 'zh-CN' : 'en'
+      }
+      if (data.restSound === '0' || data.restSound === '1') setRestSound(data.restSound === '1')
+      state.importArmed = false
+      toast(t('importOk'))
+      render()
+    } catch {
+      toast(t('importBad'))
+    }
+  }
+  reader.readAsText(file)
+}
+
+function bestSet(sets) {
+  let best = null
+  for (const set of sets || []) {
+    const kg = Number(set.kg) || 0
+    const reps = Number(set.reps) || 0
+    if (!best || kg > best.kg || (kg === best.kg && reps > best.reps)) best = { kg, reps }
+  }
+  return best
+}
+
+function progressSeries(exerciseId) {
+  const store = loadStore()
+  const points = []
+  for (const w of store.workouts) {
+    const found = (w.exercises || []).find(ex => ex.id === exerciseId)
+    if (!found) continue
+    const best = bestSet(found.sets)
+    if (!best) continue
+    points.push({ started: w.started, ...best })
+  }
+  return points.slice(0, 12).reverse()
+}
+
+function trainedExercises() {
+  const store = loadStore()
+  const map = new Map()
+  for (const w of store.workouts) {
+    for (const ex of w.exercises || []) {
+      if (!map.has(ex.id)) map.set(ex.id, { id: ex.id, name: ex.name, zh: ex.zh || '' })
+    }
+  }
+  return [...map.values()].sort((a, b) => exName(a).localeCompare(exName(b), state.lang === 'zh' ? 'zh' : 'en'))
+}
+
+/** UI 会话可定义 renderThemeControls()；此处勿实现配色 */
+function themeBlockHtml() {
+  if (typeof renderThemeControls === 'function') return renderThemeControls()
+  return '<div id="theme-slot"></div>'
 }
 
 function finishSession() {
@@ -528,6 +693,7 @@ function render() {
   else if (state.screen === 'workout') html = workoutView()
   else if (state.screen === 'detail') html = detailView(store)
   else if (state.screen === 'template') html = templateView()
+  else if (state.screen === 'progress') html = progressView()
   root.innerHTML = html
   bind()
   if (state.toast && state.restLeft <= 0) {
@@ -544,6 +710,7 @@ function homeView(store) {
     const names = w.exercises.map(e => exName(e)).slice(0, 3).join(sep)
     return `<button class="list-btn" data-open="${w.id}"><b>${fmt(w.started)}</b><div class="muted">${t('histLine', w.exercises.length, names)}</div></button>`
   }).join('')
+  const soundOn = restSoundOn()
   return `
     <div class="row"><h1>${t('appTitle')}</h1><button class="ghost" id="check">${t('checkUpdate')}</button></div>
     <p class="muted">v${APP_VERSION}. ${t('versionLocal')}</p>
@@ -554,6 +721,15 @@ function homeView(store) {
         <button class="chip ${state.lang === 'en' ? 'on' : ''}" data-lang="en">English</button>
       </div>
     </div>
+    ${themeBlockHtml()}
+    <div class="card">
+      <b>${t('backup')}</b>
+      <div class="row" style="margin-top:8px;gap:8px">
+        <button class="ghost" id="exportBtn" style="flex:1">${t('exportData')}</button>
+        <button class="ghost" id="importBtn" style="flex:1">${state.importArmed ? t('importConfirm') : t('importData')}</button>
+      </div>
+      <input id="importFile" type="file" accept="application/json,.json" hidden />
+    </div>
     <h2 style="font-size:16px">${t('templates')}</h2>
     ${store.templates.map(tpl => `
       <div class="row" style="margin-top:8px">
@@ -562,16 +738,60 @@ function homeView(store) {
       </div>
     `).join('') || `<p class="muted">${t('noTemplates')}</p>`}
     <button class="ghost" id="newTpl" style="width:100%;margin-top:8px">${t('newTemplate')}</button>
+    <button class="ghost" id="progressBtn" style="width:100%;margin-top:8px">${t('progress')}</button>
     <button class="primary" id="start" style="margin-top:10px">${t('start')}</button>
     <div class="card">
       <b>${t('restTitle')}</b>
       <div class="chips" style="margin-top:8px">
         ${[60, 90, 120, 180].map(n => `<button class="chip ${restSec() === n ? 'on' : ''}" data-rest="${n}">${n} ${t('seconds')}</button>`).join('')}
       </div>
+      <div class="row" style="margin-top:10px">
+        <span class="muted">${t('restSound')}</span>
+        <div class="chips">
+          <button class="chip ${soundOn ? 'on' : ''}" data-sound="1">${t('on')}</button>
+          <button class="chip ${!soundOn ? 'on' : ''}" data-sound="0">${t('off')}</button>
+        </div>
+      </div>
     </div>
     <h2 style="font-size:16px">${t('history')}</h2>
     ${items || `<p class="muted">${t('noHistory')}</p>`}
     <p class="muted">${t('dataCredit')}</p>
+  `
+}
+
+function progressView() {
+  const list = trainedExercises()
+  if (!list.length) {
+    return `
+      <div class="row"><h1>${t('progressTitle')}</h1><button class="ghost" id="back">${t('back')}</button></div>
+      <p class="muted">${t('progressEmpty')}</p>
+    `
+  }
+  const id = state.progressId && list.some(ex => ex.id === state.progressId) ? state.progressId : list[0].id
+  state.progressId = id
+  const series = progressSeries(id)
+  const maxKg = Math.max(1, ...series.map(p => p.kg))
+  const bars = series.map(p => {
+    const h = Math.max(8, Math.round((p.kg / maxKg) * 100))
+    const label = state.lang === 'zh'
+      ? `${new Date(p.started).getMonth() + 1}/${new Date(p.started).getDate()}`
+      : `${new Date(p.started).getMonth() + 1}/${new Date(p.started).getDate()}`
+    return `<div class="prog-col" title="${p.kg}×${p.reps}"><div class="prog-bar" style="height:${h}%"></div><span class="muted">${label}</span><span class="muted">${p.kg}</span></div>`
+  }).join('')
+  const peak = series.reduce((best, p) => (
+    !best || p.kg > best.kg || (p.kg === best.kg && p.reps > best.reps) ? p : best
+  ), null)
+  return `
+    <div class="row"><h1>${t('progressTitle')}</h1><button class="ghost" id="back">${t('back')}</button></div>
+    <p class="muted">${t('progressPick')}</p>
+    <div class="chips" style="margin-top:8px">
+      ${list.slice(0, 24).map(ex => `<button class="chip ${ex.id === id ? 'on' : ''}" data-prog="${ex.id}">${escapeHtml(exName(ex))}</button>`).join('')}
+    </div>
+    <div class="card">
+      <b>${escapeHtml(exName(list.find(ex => ex.id === id)))}</b>
+      <div class="muted" style="margin-top:4px">${t('progressSession', series.length)}${peak ? ` · ${t('progressBest', peak.kg, peak.reps)}` : ''}</div>
+      <div class="prog-chart">${bars || `<p class="muted">${t('progressEmpty')}</p>`}</div>
+    </div>
   `
 }
 
@@ -696,6 +916,11 @@ function bind() {
       render()
       return
     }
+    if (state.screen === 'progress') {
+      state.screen = 'home'
+      render()
+      return
+    }
     state.screen = state.session ? 'workout' : 'home'
     render()
   })
@@ -705,11 +930,40 @@ function bind() {
   on('saveTpl', openSaveTemplate)
   on('saveDraft', saveDraft)
   on('delWorkout', () => deleteWorkout(state.openId))
+  on('exportBtn', exportBackup)
+  on('progressBtn', () => { state.screen = 'progress'; render() })
+  on('importBtn', () => {
+    if (!state.importArmed) {
+      state.importArmed = true
+      render()
+      return
+    }
+    document.getElementById('importFile')?.click()
+  })
+  const importFile = document.getElementById('importFile')
+  if (importFile) {
+    importFile.onchange = () => {
+      const file = importFile.files && importFile.files[0]
+      importBackupFile(file)
+      importFile.value = ''
+    }
+  }
   document.querySelectorAll('[data-lang]').forEach(btn => {
     btn.onclick = () => setLang(btn.dataset.lang)
   })
+  document.querySelectorAll('[data-theme]').forEach(btn => {
+    btn.onclick = () => {
+      if (typeof setTheme === 'function') setTheme(btn.dataset.theme)
+    }
+  })
   document.querySelectorAll('[data-rest]').forEach(btn => {
     btn.onclick = () => { setRestSec(btn.dataset.rest); render() }
+  })
+  document.querySelectorAll('[data-sound]').forEach(btn => {
+    btn.onclick = () => { setRestSound(btn.dataset.sound === '1'); render() }
+  })
+  document.querySelectorAll('[data-prog]').forEach(btn => {
+    btn.onclick = () => { state.progressId = btn.dataset.prog; render() }
   })
   document.querySelectorAll('[data-open]').forEach(btn => {
     btn.onclick = () => { state.openId = btn.dataset.open; state.confirmId = null; state.screen = 'detail'; render() }
