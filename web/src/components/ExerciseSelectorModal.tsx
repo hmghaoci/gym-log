@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, X, Check, Dumbbell, Filter, Eye } from 'lucide-react';
 import { RawExercise } from '../types/gym';
 import { RAW_EXERCISES } from '../utils/storage';
-import { BODY_PARTS_ZH, EQUIPMENT_ZH, getBodyPartName, getEquipmentName, getMuscleTargetName, getExerciseMediaUrl } from '../utils/translations';
+import { BODY_PARTS_ZH, EQUIPMENT_ZH, getBodyPartName, getEquipmentName, getMuscleTargetName, getExerciseMediaUrl, getExerciseMediaFallbackUrl } from '../utils/translations';
 import { ThemeConfig } from '../types/theme';
 
 interface ExerciseSelectorModalProps {
@@ -225,6 +225,13 @@ export const ExerciseSelectorModal: React.FC<ExerciseSelectorModalProps> = ({
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover"
                           loading="lazy"
+                          onError={(e) => {
+                            const fb = getExerciseMediaFallbackUrl(ex.img)
+                            if (fb && e.currentTarget.dataset.fallback !== '1') {
+                              e.currentTarget.dataset.fallback = '1'
+                              e.currentTarget.src = fb
+                            }
+                          }}
                         />
                       ) : (
                         <Dumbbell className="w-5 h-5 opacity-40" style={{ color: theme.accentColor }} />

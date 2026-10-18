@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Dumbbell, Filter, Eye, ChevronRight, X, Play } from 'lucide-react';
 import { RawExercise, WorkoutSession } from '../types/gym';
 import { RAW_EXERCISES } from '../utils/storage';
-import { BODY_PARTS_ZH, EQUIPMENT_ZH, getBodyPartName, getEquipmentName, getMuscleTargetName, getExerciseMediaUrl } from '../utils/translations';
+import { BODY_PARTS_ZH, EQUIPMENT_ZH, getBodyPartName, getEquipmentName, getMuscleTargetName, getExerciseMediaUrl, getExerciseMediaFallbackUrl } from '../utils/translations';
 import { ThemeConfig } from '../types/theme';
 
 interface ExerciseLibraryViewProps {
@@ -234,6 +234,13 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
                         referrerPolicy="no-referrer"
                         loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const fb = getExerciseMediaFallbackUrl(ex.img || ex.g)
+                          if (fb && e.currentTarget.dataset.fallback !== '1') {
+                            e.currentTarget.dataset.fallback = '1'
+                            e.currentTarget.src = fb
+                          }
+                        }}
                       />
                     ) : (
                       <Dumbbell className="w-6 h-6 text-zinc-500" />

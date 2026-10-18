@@ -68,12 +68,20 @@ export function getMuscleTargetName(target: string, lang: 'zh' | 'en' = 'zh'): s
   return TARGET_MUSCLES_ZH[target.toLowerCase()] || target;
 }
 
+/** 本地优先（打包进 www/），外网 CDN 仅作开发兜底 */
 export const CDN_BASE = 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/';
 
 export function getExerciseMediaUrl(path?: string): string | null {
   if (!path) return null;
+  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return path;
+  // Capacitor / 相对 base：./images/xxx.jpg 与 ./videos/xxx.gif
+  return `./${path.replace(/^\.\//, '')}`;
+}
+
+export function getExerciseMediaFallbackUrl(path?: string): string | null {
+  if (!path) return null;
   if (path.startsWith('http')) return path;
-  return `${CDN_BASE}${path}`;
+  return `${CDN_BASE}${path.replace(/^\.\//, '')}`;
 }
 
 export const DAYS_ZH = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];

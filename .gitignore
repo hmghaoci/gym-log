@@ -6,3 +6,8 @@ android/build/
 dist/
 *.apk
 *.zip
+# 动作媒体约 130MB，构建前 node scripts/sync-media.js
+web/public/images/
+web/public/videos/
+www/images/
+www/videos/

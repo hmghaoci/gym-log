@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Play, Dumbbell, Award, History, Info, Sparkles, Plus } from 'lucide-react';
 import { RawExercise, WorkoutSession } from '../types/gym';
-import { getBodyPartName, getEquipmentName, getMuscleTargetName, getExerciseMediaUrl } from '../utils/translations';
+import { getBodyPartName, getEquipmentName, getMuscleTargetName, getExerciseMediaUrl, getExerciseMediaFallbackUrl } from '../utils/translations';
 import { calculate1RM, formatVolume } from '../utils/calculations';
 import { ThemeConfig } from '../types/theme';
 
@@ -23,11 +23,17 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   const [showAnimation, setShowAnimation] = useState(true);
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false)
+    setShowAnimation(true)
+  }, [exercise?.id])
+
   if (!exercise) return null;
 
   const gifUrl = getExerciseMediaUrl(exercise.g);
   const jpgUrl = getExerciseMediaUrl(exercise.img);
   const mediaSrc = showAnimation && gifUrl ? gifUrl : jpgUrl;
+  const mediaFallback = getExerciseMediaFallbackUrl(showAnimation ? exercise.g : exercise.img);
 
   // Compute personal records for this exercise
   let maxWeight = 0;
@@ -113,10 +119,18 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
           >
             {mediaSrc && !imgError ? (
               <img
+                key={`${exercise.id}-${showAnimation ? 'gif' : 'jpg'}`}
                 src={mediaSrc}
                 alt={exercise.zh || exercise.n}
                 referrerPolicy="no-referrer"
-                onError={() => setImgError(true)}
+                onError={(e) => {
+                  if (mediaFallback && e.currentTarget.dataset.fallback !== '1') {
+                    e.currentTarget.dataset.fallback = '1'
+                    e.currentTarget.src = mediaFallback
+                    return
+                  }
+                  setImgError(true)
+                }}
                 className="w-full h-full object-contain p-2"
               />
             ) : (
