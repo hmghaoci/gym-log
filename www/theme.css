@@ -1,0 +1,61 @@
+/* 四套气质，对应 docs/theme-preview.html 的 ember / mist / pulse / forge。
+   只覆盖现有 CSS 变量，不改页面结构。UI 会话请改这个文件。 */
+[data-theme="ember"] {
+  --bg: #0c0c0c;
+  --card: #161616;
+  --ink: #f6f3ef;
+  --muted: #a39b94;
+  --line: #2c2c2c;
+  --accent: #ff5a30;
+  --accent-ink: #1a0a06;
+  --ghost: #1c1c1c;
+  --danger: #ff8a70;
+  --timer: #1a0a06;
+}
+[data-theme="mist"] {
+  --bg: #d5e0e8;
+  --card: rgba(255,255,255,.78);
+  --ink: #1a1d21;
+  --muted: #5c6973;
+  --line: rgba(255,255,255,.7);
+  --accent: #111111;
+  --accent-ink: #ffffff;
+  --ghost: rgba(255,255,255,.55);
+  --danger: #9b3b2e;
+  --timer: #111111;
+}
+[data-theme="pulse"] {
+  --bg: #05060a;
+  --card: rgba(255,255,255,.06);
+  --ink: #f4f6ff;
+  --muted: #a8b0c8;
+  --line: rgba(255,255,255,.14);
+  --accent: #7c4dff;
+  --accent-ink: #ffffff;
+  --ghost: rgba(255,255,255,.08);
+  --danger: #ff6b8a;
+  --timer: #12141c;
+}
+[data-theme="forge"] {
+  --bg: #070707;
+  --card: #121212;
+  --ink: #f7f7f7;
+  --muted: #9a9a9a;
+  --line: rgba(255,120,40,.35);
+  --accent: #ff6a1a;
+  --accent-ink: #1a0a04;
+  --ghost: #161616;
+  --danger: #ff8a70;
+  --timer: #1a0a04;
+}
+
+html[data-theme] body { background: var(--bg); color: var(--ink); }
+html[data-theme] .card,
+html[data-theme] .list-btn,
+html[data-theme] .toast { background: var(--card); color: var(--ink); border-color: var(--line); }
+html[data-theme] button.primary { background: var(--accent); color: var(--accent-ink); }
+html[data-theme] button.ghost { background: var(--ghost); color: var(--ink); }
+html[data-theme] .chip { background: var(--card); color: var(--ink); border-color: var(--line); }
+html[data-theme] .chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+html[data-theme] .timer { background: var(--timer); color: var(--accent-ink); }
+html[data-theme] .prog-bar { background: var(--accent); }
