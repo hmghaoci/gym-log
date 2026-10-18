@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1.0'
+const APP_VERSION = '1.2.0'
 const UPDATE_URLS = [
   'https://github.com/hmghaoci/gym-log/releases/latest/download/latest.json',
   'https://raw.githubusercontent.com/hmghaoci/gym-log/main/release/latest.json',
@@ -44,6 +44,24 @@ const I18N = {
     noSets: '还没有完成任何一组',
     saved: '这次训练已保存',
     lang: '语言',
+    templates: '模板',
+    newTemplate: '新建模板',
+    saveTemplate: '存为模板',
+    templatePh: '模板名称，例如推日',
+    templateEmpty: '先加至少一个动作。',
+    templateNeed: '写上名称，并至少留下一个动作。',
+    templateSaved: '模板已保存',
+    removeExercise: '拿掉',
+    removeSet: '删',
+    deleteWorkout: '删除这次训练',
+    deleteConfirm: '再点一次删除',
+    noTemplates: '还没有模板。',
+    lastPrefix: '上次',
+    showAnim: '动画',
+    hideAnim: '收起',
+    mediaCredit: '动作动画 © Gym visual',
+    addToTemplate: '加动作',
+    removeTplEx: '拿掉',
     body: {
       chest: '胸', back: '背', shoulders: '肩', 'upper arms': '手臂', 'lower arms': '前臂',
       'upper legs': '大腿', 'lower legs': '小腿', waist: '核心', cardio: '有氧', neck: '颈部',
@@ -99,6 +117,24 @@ const I18N = {
     noSets: 'No completed sets yet',
     saved: 'Workout saved',
     lang: 'Language',
+    templates: 'Routines',
+    newTemplate: 'New routine',
+    saveTemplate: 'Save routine',
+    templatePh: 'Routine name, e.g. Push',
+    templateEmpty: 'Add at least one exercise.',
+    templateNeed: 'Add a name and at least one exercise.',
+    templateSaved: 'Routine saved',
+    removeExercise: 'Remove',
+    removeSet: 'Del',
+    deleteWorkout: 'Delete workout',
+    deleteConfirm: 'Tap again to delete',
+    noTemplates: 'No routines yet.',
+    lastPrefix: 'Last',
+    showAnim: 'GIF',
+    hideAnim: 'Hide',
+    mediaCredit: 'Exercise media © Gym visual',
+    addToTemplate: 'Add exercise',
+    removeTplEx: 'Remove',
     body: {
       chest: 'Chest', back: 'Back', shoulders: 'Shoulders', 'upper arms': 'Arms', 'lower arms': 'Forearms',
       'upper legs': 'Legs', 'lower legs': 'Calves', waist: 'Core', cardio: 'Cardio', neck: 'Neck',
@@ -119,6 +155,37 @@ const state = {
   toast: '',
   openId: null,
   lang: localStorage.getItem(LANG_KEY) || 'zh',
+  confirmId: null,
+  draft: null,
+  pickFor: 'session',
+  openGif: null,
+}
+
+const MEDIA_BASE = 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/'
+
+function mediaUrl(path) {
+  if (!path) return ''
+  if (/^https?:\/\//i.test(path)) return path
+  return MEDIA_BASE + String(path).replace(/^\//, '')
+}
+
+function findExercise(id) {
+  return state.exercises.find(ex => ex.id === id)
+}
+
+function gifBlock(id) {
+  const ex = findExercise(id)
+  if (!ex?.g) return ''
+  if (state.openGif !== id) {
+    return `<button class="ghost tiny" data-gif="${id}">${t('showAnim')}</button>`
+  }
+  return `
+    <div class="gif-box">
+      <img src="${escapeHtml(mediaUrl(ex.g))}" alt="" loading="lazy" />
+      <button class="ghost tiny" data-gif="${id}">${t('hideAnim')}</button>
+      <div class="muted" style="margin-top:4px">${t('mediaCredit')}</div>
+    </div>
+  `
 }
 
 function t(key, ...args) {
@@ -155,8 +222,14 @@ function setLang(lang) {
 }
 
 function loadStore() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || { workouts: [] } }
-  catch { return { workouts: [] } }
+  try {
+    const data = JSON.parse(localStorage.getItem(STORE_KEY)) || {}
+    if (!Array.isArray(data.workouts)) data.workouts = []
+    if (!Array.isArray(data.templates)) data.templates = []
+    return data
+  } catch {
+    return { workouts: [], templates: [] }
+  }
 }
 function saveStore(data) {
   localStorage.setItem(STORE_KEY, JSON.stringify(data))
@@ -241,22 +314,153 @@ async function applyBundle(CapacitorUpdater, data) {
   await CapacitorUpdater.set({ id: bundle.id })
 }
 
+function lastSets(id) {
+  const store = loadStore()
+  for (const workout of store.workouts) {
+    const found = workout.exercises.find(item => item.id === id)
+    if (found && found.sets && found.sets.length) return found.sets
+  }
+  return []
+}
+
+function lastLine(id) {
+  const sets = lastSets(id)
+  if (!sets.length) return ''
+  const sep = state.lang === 'zh' ? '、' : ', '
+  const parts = sets.map(set => (
+    state.lang === 'zh'
+      ? `${set.kg || 0} 公斤 × ${set.reps || 0} 次`
+      : `${set.kg || 0} kg × ${set.reps || 0}`
+  ))
+  return `${t('lastPrefix')} ${parts.join(sep)}`
+}
+
+function freshExercise(ex) {
+  const prev = lastSets(ex.id)
+  const first = prev[0] || {}
+  return {
+    id: ex.id,
+    name: ex.n || ex.name,
+    zh: ex.zh || '',
+    sets: [{ kg: first.kg ?? '', reps: first.reps ?? '', done: false }],
+  }
+}
+
 function startSession() {
   state.session = { id: Date.now().toString(36), started: Date.now(), exercises: [] }
+  state.pickFor = 'session'
+  state.screen = 'workout'
+  render()
+}
+
+function startFromTemplate(tpl) {
+  state.session = {
+    id: Date.now().toString(36),
+    started: Date.now(),
+    exercises: tpl.exercises.map(freshExercise),
+  }
+  state.pickFor = 'session'
   state.screen = 'workout'
   render()
 }
 
 function addExercise(ex) {
+  if (!ex) return
+  if (state.pickFor === 'template' && state.draft) {
+    if (!state.draft.exercises.some(item => item.id === ex.id)) {
+      state.draft.exercises.push({ id: ex.id, name: ex.n || ex.name, zh: ex.zh || '' })
+    }
+    state.screen = 'template'
+    render()
+    return
+  }
   if (!state.session.exercises.some(item => item.id === ex.id)) {
-    state.session.exercises.push({
-      id: ex.id,
-      name: ex.n,
-      zh: ex.zh || '',
-      sets: [{ kg: '', reps: '', done: false }],
-    })
+    state.session.exercises.push(freshExercise(ex))
   }
   state.screen = 'workout'
+  render()
+}
+
+function removeExercise(index) {
+  state.session.exercises.splice(index, 1)
+  render()
+}
+
+function removeSet(exIndex, setIndex) {
+  const sets = state.session.exercises[exIndex].sets
+  sets.splice(setIndex, 1)
+  if (!sets.length) sets.push({ kg: '', reps: '', done: false })
+  render()
+}
+
+function openNewTemplate() {
+  state.draft = { name: '', exercises: [] }
+  state.pickFor = 'template'
+  state.screen = 'template'
+  render()
+}
+
+function openSaveTemplate() {
+  if (!state.session || !state.session.exercises.length) {
+    toast(t('templateEmpty'))
+    return
+  }
+  state.draft = {
+    name: '',
+    exercises: state.session.exercises.map(ex => ({ id: ex.id, name: ex.name, zh: ex.zh || '' })),
+  }
+  state.pickFor = 'template'
+  state.screen = 'template'
+  render()
+}
+
+function saveDraft() {
+  const name = (state.draft.name || '').trim()
+  if (!name || !state.draft.exercises.length) {
+    toast(t('templateNeed'))
+    return
+  }
+  const store = loadStore()
+  store.templates.unshift({
+    id: Date.now().toString(36),
+    name,
+    exercises: state.draft.exercises.map(ex => ({ id: ex.id, name: ex.name, zh: ex.zh || '' })),
+  })
+  saveStore(store)
+  state.draft = null
+  state.pickFor = 'session'
+  state.screen = state.session ? 'workout' : 'home'
+  toast(t('templateSaved'))
+  render()
+}
+
+function deleteTemplate(id) {
+  const key = `tpl:${id}`
+  if (state.confirmId !== key) {
+    state.confirmId = key
+    render()
+    return
+  }
+  const store = loadStore()
+  store.templates = store.templates.filter(item => item.id !== id)
+  saveStore(store)
+  state.confirmId = null
+  render()
+}
+
+function deleteWorkout(id) {
+  const key = `wo:${id}`
+  if (state.confirmId !== key) {
+    state.confirmId = key
+    render()
+    return
+  }
+  const store = loadStore()
+  store.workouts = store.workouts.filter(item => item.id !== id)
+  saveStore(store)
+  state.confirmId = null
+  state.openId = null
+  state.screen = 'home'
   render()
 }
 
@@ -323,6 +527,7 @@ function render() {
   else if (state.screen === 'pick') html = pickView()
   else if (state.screen === 'workout') html = workoutView()
   else if (state.screen === 'detail') html = detailView(store)
+  else if (state.screen === 'template') html = templateView()
   root.innerHTML = html
   bind()
   if (state.toast && state.restLeft <= 0) {
@@ -349,7 +554,15 @@ function homeView(store) {
         <button class="chip ${state.lang === 'en' ? 'on' : ''}" data-lang="en">English</button>
       </div>
     </div>
-    <button class="primary" id="start">${t('start')}</button>
+    <h2 style="font-size:16px">${t('templates')}</h2>
+    ${store.templates.map(tpl => `
+      <div class="row" style="margin-top:8px">
+        <button class="list-btn" data-tpl="${tpl.id}" style="margin:0;flex:1"><b>${escapeHtml(tpl.name)}</b><div class="muted">${tpl.exercises.map(ex => exName(ex)).slice(0, 3).join(sep)}</div></button>
+        <button class="danger tiny" data-del-tpl="${tpl.id}">${state.confirmId === `tpl:${tpl.id}` ? t('deleteConfirm') : t('removeSet')}</button>
+      </div>
+    `).join('') || `<p class="muted">${t('noTemplates')}</p>`}
+    <button class="ghost" id="newTpl" style="width:100%;margin-top:8px">${t('newTemplate')}</button>
+    <button class="primary" id="start" style="margin-top:10px">${t('start')}</button>
     <div class="card">
       <b>${t('restTitle')}</b>
       <div class="chips" style="margin-top:8px">
@@ -379,29 +592,65 @@ function pickView() {
     <div class="row"><h1>${t('pickTitle')}</h1><button class="ghost" id="back">${t('back')}</button></div>
     <input id="q" type="search" placeholder="${t('searchPh')}" value="${escapeHtml(state.query)}" />
     <div class="chips" style="margin-top:8px">${filters}</div>
-    ${list.map(ex => `<button class="list-btn" data-add="${ex.id}"><b>${escapeHtml(exName(ex))}</b><div class="muted">${bodyName(ex.b)} · ${escapeHtml(eqName(ex.eq))} · ${escapeHtml(targetName(ex.t))}</div></button>`).join('') || `<p class="muted">${t('noMatch')}</p>`}
+    ${list.map(ex => `
+      <button class="list-btn" data-add="${ex.id}">
+        <div class="pick-row">
+          ${ex.img ? `<img class="thumb" src="${escapeHtml(mediaUrl(ex.img))}" alt="" loading="lazy" />` : ''}
+          <div>
+            <b>${escapeHtml(exName(ex))}</b>
+            <div class="muted">${bodyName(ex.b)} · ${escapeHtml(eqName(ex.eq))} · ${escapeHtml(targetName(ex.t))}</div>
+          </div>
+        </div>
+      </button>
+    `).join('') || `<p class="muted">${t('noMatch')}</p>`}
   `
 }
 
 function workoutView() {
-  const blocks = state.session.exercises.map((ex, i) => `
+  const blocks = state.session.exercises.map((ex, i) => {
+    const last = lastLine(ex.id)
+    return `
     <div class="card">
-      <b>${escapeHtml(exName(ex))}</b>
+      <div class="card-head">
+        <b>${escapeHtml(exName(ex))}</b>
+        <button class="danger tiny" data-del-ex="${i}">${t('removeExercise')}</button>
+      </div>
+      ${last ? `<div class="muted" style="margin:6px 0">${escapeHtml(last)}</div>` : ''}
+      ${gifBlock(ex.id)}
       ${ex.sets.map((set, j) => `
         <div class="set ${set.done ? 'done' : ''}">
           <span>${j + 1}</span>
           <input data-kg="${i}:${j}" type="number" inputmode="decimal" placeholder="${t('kg')}" value="${set.kg}" ${set.done ? 'disabled' : ''} />
           <input data-reps="${i}:${j}" type="number" inputmode="numeric" placeholder="${t('reps')}" value="${set.reps}" ${set.done ? 'disabled' : ''} />
-          ${set.done ? `<span>${t('done')}</span>` : `<button class="ghost" data-done="${i}:${j}">${t('done')}</button>`}
+          ${set.done ? `<span>${t('done')}</span>` : `<button class="ghost tiny" data-done="${i}:${j}">${t('done')}</button>`}
+          <button class="danger tiny" data-del-set="${i}:${j}">${t('removeSet')}</button>
         </div>
       `).join('')}
-    </div>
-  `).join('')
+    </div>`
+  }).join('')
   return `
     <div class="row"><h1>${t('workoutTitle')}</h1><button class="ghost" id="pick">${t('addExercise')}</button></div>
     ${blocks || `<p class="muted">${t('emptyWorkout')}</p>`}
-    <button class="primary" id="finish">${t('finish')}</button>
+    <button class="ghost" id="saveTpl" style="width:100%;margin-top:8px">${t('saveTemplate')}</button>
+    <button class="primary" id="finish" style="margin-top:8px">${t('finish')}</button>
     ${state.restLeft > 0 ? `<div class="timer"><div><div class="muted" style="color:#d1d5db">${t('rest')}</div><b style="font-size:28px">${state.restLeft}s</b></div><button class="ghost" id="skip">${t('skip')}</button></div>` : ''}
+  `
+}
+
+function templateView() {
+  if (!state.draft) return `<button class="ghost" id="back">${t('back')}</button>`
+  const items = state.draft.exercises.map((ex, i) => `
+    <div class="row" style="margin-top:8px">
+      <div class="list-btn" style="margin:0;flex:1"><b>${escapeHtml(exName(ex))}</b></div>
+      <button class="danger tiny" data-del-draft="${i}">${t('removeTplEx')}</button>
+    </div>
+  `).join('')
+  return `
+    <div class="row"><h1>${t('newTemplate')}</h1><button class="ghost" id="back">${t('back')}</button></div>
+    <input id="tplName" type="search" placeholder="${t('templatePh')}" value="${escapeHtml(state.draft.name || '')}" />
+    ${items || `<p class="muted">${t('templateEmpty')}</p>`}
+    <button class="ghost" id="pick" style="width:100%;margin-top:8px">${t('addToTemplate')}</button>
+    <button class="primary" id="saveDraft" style="margin-top:8px">${t('saveTemplate')}</button>
   `
 }
 
@@ -409,11 +658,17 @@ function detailView(store) {
   const w = store.workouts.find(item => item.id === state.openId)
   if (!w) return `<button class="ghost" id="back">${t('back')}</button><p>${t('notFound')}</p>`
   const blocks = w.exercises.map(ex => `
-    <div class="card"><b>${escapeHtml(exName(ex))}</b>
+    <div class="card">
+      <div class="card-head"><b>${escapeHtml(exName(ex))}</b>${gifBlock(ex.id)}</div>
       ${ex.sets.map((s, i) => `<div class="muted">${t('setLine', i + 1, s.kg, s.reps)}</div>`).join('')}
     </div>
   `).join('')
-  return `<div class="row"><h1>${fmt(w.started)}</h1><button class="ghost" id="back">${t('back')}</button></div>${blocks}`
+  const delLabel = state.confirmId === `wo:${w.id}` ? t('deleteConfirm') : t('deleteWorkout')
+  return `
+    <div class="row"><h1>${fmt(w.started)}</h1><button class="ghost" id="back">${t('back')}</button></div>
+    ${blocks}
+    <button class="danger" id="delWorkout" style="width:100%;margin-top:8px">${delLabel}</button>
+  `
 }
 
 function escapeHtml(s) {
@@ -428,9 +683,28 @@ function bind() {
   on('start', startSession)
   on('check', checkUpdate)
   on('pick', () => { state.screen = 'pick'; render() })
-  on('back', () => { state.screen = state.session ? 'workout' : 'home'; render() })
+  on('back', () => {
+    if (state.screen === 'pick' && state.pickFor === 'template') {
+      state.screen = 'template'
+      render()
+      return
+    }
+    if (state.screen === 'template') {
+      state.draft = null
+      state.pickFor = 'session'
+      state.screen = state.session ? 'workout' : 'home'
+      render()
+      return
+    }
+    state.screen = state.session ? 'workout' : 'home'
+    render()
+  })
   on('finish', finishSession)
   on('skip', () => { clearInterval(state.restTimer); state.restLeft = 0; render() })
+  on('newTpl', openNewTemplate)
+  on('saveTpl', openSaveTemplate)
+  on('saveDraft', saveDraft)
+  on('delWorkout', () => deleteWorkout(state.openId))
   document.querySelectorAll('[data-lang]').forEach(btn => {
     btn.onclick = () => setLang(btn.dataset.lang)
   })
@@ -438,13 +712,44 @@ function bind() {
     btn.onclick = () => { setRestSec(btn.dataset.rest); render() }
   })
   document.querySelectorAll('[data-open]').forEach(btn => {
-    btn.onclick = () => { state.openId = btn.dataset.open; state.screen = 'detail'; render() }
+    btn.onclick = () => { state.openId = btn.dataset.open; state.confirmId = null; state.screen = 'detail'; render() }
+  })
+  document.querySelectorAll('[data-tpl]').forEach(btn => {
+    btn.onclick = () => {
+      const tpl = loadStore().templates.find(item => item.id === btn.dataset.tpl)
+      if (tpl) startFromTemplate(tpl)
+    }
+  })
+  document.querySelectorAll('[data-del-tpl]').forEach(btn => {
+    btn.onclick = () => deleteTemplate(btn.dataset.delTpl)
+  })
+  document.querySelectorAll('[data-del-ex]').forEach(btn => {
+    btn.onclick = () => removeExercise(Number(btn.dataset.delEx))
+  })
+  document.querySelectorAll('[data-del-set]').forEach(btn => {
+    btn.onclick = () => {
+      const [i, j] = btn.dataset.delSet.split(':').map(Number)
+      removeSet(i, j)
+    }
+  })
+  document.querySelectorAll('[data-del-draft]').forEach(btn => {
+    btn.onclick = () => {
+      state.draft.exercises.splice(Number(btn.dataset.delDraft), 1)
+      render()
+    }
+  })
+  document.querySelectorAll('[data-gif]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.gif
+      state.openGif = state.openGif === id ? null : id
+      render()
+    }
   })
   document.querySelectorAll('[data-filter]').forEach(btn => {
     btn.onclick = () => { state.filter = btn.dataset.filter; render() }
   })
   document.querySelectorAll('[data-add]').forEach(btn => {
-    btn.onclick = () => addExercise(state.exercises.find(ex => ex.id === btn.dataset.add))
+    btn.onclick = () => addExercise(findExercise(btn.dataset.add))
   })
   document.querySelectorAll('[data-done]').forEach(btn => {
     btn.onclick = () => {
@@ -459,6 +764,10 @@ function bind() {
       state.session.exercises[i].sets[j][key] = input.value
     }
   })
+  const tplName = document.getElementById('tplName')
+  if (tplName) {
+    tplName.oninput = () => { state.draft.name = tplName.value }
+  }
   const q = document.getElementById('q')
   if (q) {
     q.oninput = () => {

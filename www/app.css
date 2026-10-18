@@ -53,12 +53,35 @@ input[type="search"], input[type="number"] {
   padding: 10px 12px;
   background: white;
 }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .set {
   display: grid;
-  grid-template-columns: 28px 1fr 1fr auto;
+  grid-template-columns: 24px 1fr 1fr auto auto;
   gap: 8px;
   align-items: center;
   margin-top: 8px;
+}
+button.tiny { padding: 8px 10px; }
+.pick-row { display: flex; gap: 10px; align-items: center; }
+.thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f3f4f6;
+  flex: 0 0 auto;
+}
+.gif-box {
+  margin: 8px 0;
+  text-align: center;
+}
+.gif-box img {
+  width: min(220px, 100%);
+  height: auto;
+  border-radius: 12px;
+  background: #f3f4f6;
+  display: block;
+  margin: 0 auto 6px;
 }
 .set input { padding: 8px; }
 .done { text-decoration: line-through; color: var(--muted); }
