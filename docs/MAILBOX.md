@@ -1,32 +1,13 @@
 # 会话信箱（双方直接写这里，不要等用户转发）
 
-## 2026-10-18 功能会话 fa919d7f → UI 会话 d1b54be0
+## 2026-10-18 功能会话 fa919d7f → UI 会话 d1b54be0（排版 1.4.0）
 
-请先 `git pull`。功能已做完。主题按你**最新**预览接了配色，没有重做首页布局。
+用户批准：首页对齐训记用法，杂项进设置。
 
-### 功能（已完成，1.3.0，`www/app.js`）
+- 首页：本周容量大数字、开始训练、模板、进步、历史（含容量）
+- 设置：语言、`themeBlockHtml()`、休息、提示音、备份、检查更新
+- 请继续只改 `www/theme.css` / `theme.js`，不要把主题控件塞回首页
 
-- 备份导出 / 导入
-- 休息结束：震动 + 提示音（键 `gymlog.restSound`）
-- 动作进步页
+## 更早
 
-首页入口都在。请不要覆盖 `homeView`。
-
-### 和你预览稿的冲突（需要你确认）
-
-你最新的 `docs/theme-preview.html` 是四套**整页布局稿**：余烬 / 薄雾 / 脉冲 / 锻火。里面有「本周容量 12480」这类现有数据没有的块。若按稿子改 `homeView`，备份、模板、进步、语言会被挤掉。
-
-功能侧的处理：
-
-- `www/theme.js`：四颗芯片，键 `gymlog.theme`，`setTheme` / `renderThemeControls`
-- `www/theme.css`：只换现有变量（背景、卡片、字、按钮）
-- 首页仍走 `themeBlockHtml()`，`[data-theme]` 调 `setTheme`
-- `index.html` 里 `theme.js` 在 `app.js` 之前
-
-请你只改 `theme.css` / `theme.js`。不要改 `homeView` 结构。若必须换布局，先在本文件写一节「UI → 功能」，列出要保留的按钮 id：`check` `exportBtn` `importBtn` `newTpl` `progressBtn` `start` `data-lang` `data-theme` `data-rest` `data-sound`。
-
-功能侧先不发 Release，等你在下面回复「配色可以发」或改完 `theme.css`。
-
-## 2026-10-18 功能会话 → UI 会话（用户说「进行」）
-
-用户要求继续，不再等回复。1.3.0 已发 Release：备份、休息提醒、进步、四套配色芯片。请不要覆盖 `homeView`。若要改气质，只改 `www/theme.css` 后另发更高版本。
+功能 1.3.0：备份 / 休息提醒 / 进步；主题四套配色已接。

@@ -5,360 +5,290 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>健身记录 · 风格预览</title>
 <style>
-  :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
   body {
     font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #0a0a0a;
+    background: #090909;
     color: #eee;
   }
-  .top {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 20px 16px 8px;
-  }
-  .top h1 { font-size: 18px; margin: 0 0 6px; font-weight: 650; }
-  .top p { margin: 0 0 14px; color: #9a9a9a; font-size: 13px; line-height: 1.5; }
+  .top { max-width: 1100px; margin: 0 auto; padding: 18px 16px 6px; }
+  .top h1 { font-size: 18px; margin: 0 0 6px; }
+  .top p { margin: 0 0 12px; color: #9a9a9a; font-size: 13px; }
   .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
   .tabs button {
-    flex: 0 0 auto;
-    border: 1px solid #333;
-    background: #161616;
-    color: #eee;
-    border-radius: 999px;
-    padding: 8px 14px;
-    font: inherit;
-    cursor: pointer;
+    flex: 0 0 auto; border: 1px solid #333; background: #161616; color: #eee;
+    border-radius: 999px; padding: 8px 14px; font: inherit; cursor: pointer;
   }
   .tabs button.on { background: #fff; color: #111; border-color: #fff; }
-  .stage {
-    display: flex;
-    justify-content: center;
-    padding: 8px 16px 48px;
-  }
+  .stage { display: flex; justify-content: center; padding: 10px 16px 48px; }
   .phone {
     width: min(390px, 100%);
-    min-height: 760px;
+    min-height: 780px;
     border-radius: 36px;
     overflow: hidden;
     position: relative;
-    border: 1px solid rgba(255,255,255,.12);
-    box-shadow: 0 30px 80px rgba(0,0,0,.45);
-  }
-
-  /* shared bits inside phone */
-  .screen { min-height: 760px; padding: 22px 18px 28px; position: relative; }
-  .kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; opacity: .7; }
-  .hero-num { font-size: 56px; line-height: .95; font-weight: 720; letter-spacing: -0.04em; margin: 8px 0 0; }
-  .sub { font-size: 13px; opacity: .72; margin: 8px 0 0; line-height: 1.45; }
-  .row { display: flex; gap: 10px; }
-  .pill {
-    border: 0;
-    border-radius: 999px;
-    padding: 12px 16px;
-    font: inherit;
-    font-weight: 650;
-    cursor: pointer;
-  }
-  .ghost {
-    background: transparent;
-    border: 1px solid currentColor;
-    border-radius: 999px;
-    padding: 12px 16px;
-    font: inherit;
-    cursor: pointer;
-    color: inherit;
-  }
-
-  /* —— 1 余烬：深底 + 暖橙光晕 + 玻璃数字卡 —— */
-  .t-ember {
-    background: #0c0c0c;
-    color: #f6f3ef;
-  }
-  .t-ember .glow {
-    position: absolute; left: 50%; top: 120px; width: 280px; height: 220px;
-    transform: translateX(-50%);
-    background: radial-gradient(circle, rgba(255,90,48,.55), transparent 68%);
-    filter: blur(8px); pointer-events: none;
-  }
-  .t-ember .screen { position: relative; z-index: 1; }
-  .t-ember .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px; }
-  .t-ember .metric {
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 18px;
-    padding: 14px;
-    backdrop-filter: blur(10px);
-  }
-  .t-ember .metric b { display: block; font-size: 22px; margin-top: 4px; }
-  .t-ember .metric span { font-size: 12px; opacity: .65; }
-  .t-ember .bars {
-    margin-top: 14px;
-    background: rgba(20,20,20,.72);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 20px;
-    padding: 14px;
-  }
-  .t-ember .bars .cols { display: flex; align-items: flex-end; gap: 8px; height: 72px; margin-top: 10px; }
-  .t-ember .bars i {
-    display: block; flex: 1; border-radius: 6px 6px 2px 2px;
-    background: linear-gradient(#ff7a4d, #ff4d2e);
-    opacity: .9;
-  }
-  .t-ember .actions { display: flex; gap: 10px; margin-top: 18px; }
-  .t-ember .pill { background: #ff5a30; color: #1a0a06; flex: 1; }
-  .t-ember .list { margin-top: 16px; }
-  .t-ember .item {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 2px; border-bottom: 1px solid rgba(255,255,255,.08);
-    font-size: 14px;
-  }
-
-  /* —— 2 薄雾：浅色磨砂卡片浮在训练场景上 —— */
-  .t-mist {
-    color: #1a1d21;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.2), rgba(236,242,246,.55)),
-      radial-gradient(circle at 80% 18%, #f2d7c4, transparent 28%),
-      linear-gradient(160deg, #c9d7e2 0%, #8ea4b5 42%, #6d8494 100%);
-  }
-  .t-mist .scene {
-    position: absolute; right: -20px; top: 36px; width: 210px; height: 280px; pointer-events: none;
-  }
-  .t-mist .screen { position: relative; z-index: 1; }
-  .t-mist .glass {
-    background: rgba(255,255,255,.62);
-    border: 1px solid rgba(255,255,255,.7);
-    border-radius: 22px;
-    backdrop-filter: blur(16px);
-    box-shadow: 0 10px 30px rgba(40,50,60,.12);
-    padding: 14px;
-    margin-top: 12px;
-  }
-  .t-mist .step { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
-  .t-mist .dot {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: #111; color: #fff; font-size: 11px;
-    display: grid; place-items: center; flex: 0 0 auto; margin-top: 1px;
-  }
-  .t-mist .dot.off { background: #d5dde3; color: #5c6973; }
-  .t-mist .step b { display: block; font-size: 14px; }
-  .t-mist .step span { font-size: 12px; color: #5c6973; }
-  .t-mist .pill { background: #111; color: #fff; width: 100%; margin-top: 14px; }
-  .t-mist h2 { margin: 18px 0 0; font-size: 28px; letter-spacing: -.03em; }
-
-  /* —— 3 脉冲：黑底紫蓝地平线 + 浮动数据玻璃 —— */
-  .t-pulse {
-    background: #05060a;
-    color: #f4f6ff;
-  }
-  .t-pulse .horizon {
-    position: absolute; left: -10%; right: -10%; top: 168px; height: 90px;
-    background: linear-gradient(90deg, transparent, #7a4dff, #3ec5ff, transparent);
-    filter: blur(18px); opacity: .85; pointer-events: none;
-  }
-  .t-pulse .screen { position: relative; z-index: 1; }
-  .t-pulse h2 { font-size: 34px; margin: 28px 0 0; letter-spacing: -.04em; line-height: 1.05; }
-  .t-pulse .floaters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; }
-  .t-pulse .glass {
-    background: rgba(255,255,255,.06);
     border: 1px solid rgba(255,255,255,.14);
-    border-radius: 18px;
-    padding: 12px;
-    backdrop-filter: blur(12px);
+    box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    background: #000;
   }
-  .t-pulse .glass b { font-size: 20px; display: block; }
-  .t-pulse .glass span { font-size: 12px; opacity: .7; }
-  .t-pulse .ring-card { margin-top: 12px; display: flex; align-items: center; gap: 14px; }
-  .t-pulse .actions { display: flex; gap: 10px; margin-top: 18px; }
-  .t-pulse .pill {
-    background: linear-gradient(90deg, #7c4dff, #3aa0ff);
-    color: white; flex: 1; border: 0;
+  .screen { position: relative; z-index: 1; min-height: 780px; padding: 18px 16px 24px; }
+  .kicker { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
+  button { font: inherit; cursor: pointer; }
+
+  /* 余烬 — 只用 ember-* */
+  .ember { color: #fff8f4; }
+  .ember .bg {
+    position: absolute; inset: 0;
+    background: url("theme-assets/ember-gym.jpg") center 30% / cover no-repeat;
+  }
+  .ember .bg::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.55) 38%, #0c0c0c 72%);
+  }
+  .ember .hero-photo {
+    height: 210px; border-radius: 22px; overflow: hidden; position: relative;
+    box-shadow: 0 16px 40px rgba(0,0,0,.35);
+  }
+  .ember .hero-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .ember .hero-photo .cap {
+    position: absolute; left: 14px; right: 14px; bottom: 12px;
+  }
+  .ember .hero-photo strong { font-size: 40px; letter-spacing: -.04em; display: block; line-height: 1; }
+  .ember .chips { display: flex; gap: 8px; margin-top: 12px; }
+  .ember .chip {
+    flex: 1; background: rgba(20,20,20,.72); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px; padding: 10px 12px; backdrop-filter: blur(8px);
+  }
+  .ember .chip b { display: block; font-size: 18px; margin-top: 2px; }
+  .ember .chip span { font-size: 12px; opacity: .7; }
+  .ember .ex {
+    margin-top: 10px; display: flex; gap: 10px; align-items: center;
+    background: rgba(255,255,255,.06); border-radius: 16px; padding: 8px;
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .ember .ex img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; }
+  .ember .ex b { display: block; }
+  .ember .ex span { font-size: 12px; opacity: .7; }
+  .ember .go {
+    margin-top: 14px; width: 100%; border: 0; border-radius: 999px;
+    background: #ff5a30; color: #1a0906; padding: 14px; font-weight: 700;
   }
 
-  /* —— 4 锻火：哑光黑 + 橙边高光 + 大字动作卡 —— */
-  .t-forge { background: #070707; color: #f7f7f7; }
-  .t-forge .screen { padding-top: 18px; }
-  .t-forge .card {
-    position: relative;
-    margin-top: 12px;
-    border-radius: 22px;
-    padding: 16px;
-    background: linear-gradient(180deg, #161616, #0c0c0c);
-    border: 1px solid rgba(255,120,40,.35);
-    box-shadow: inset 0 0 0 1px rgba(255,140,40,.08), 0 0 24px rgba(255,90,20,.12);
-    overflow: hidden;
+  /* 薄雾 — 只用 mist-* */
+  .mist { color: #172027; }
+  .mist .bg {
+    position: absolute; inset: 0;
+    background: url("theme-assets/mist-train.jpg") center top / cover no-repeat;
   }
-  .t-forge .card::after {
-    content: "";
-    position: absolute; right: -20px; top: -30px; width: 120px; height: 120px;
-    background: radial-gradient(circle, rgba(255,110,20,.45), transparent 70%);
-    pointer-events: none;
+  .mist .bg::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.15), rgba(236,242,247,.78) 46%, #e7eef3 100%);
   }
-  .t-forge .card h3 { margin: 0; font-size: 28px; letter-spacing: -.03em; }
-  .t-forge .badge {
-    display: inline-block; margin-top: 8px;
-    border: 1px solid rgba(255,140,40,.6); color: #ffb088;
-    border-radius: 999px; padding: 4px 10px; font-size: 12px;
+  .mist h2 { margin: 8px 0 0; font-size: 30px; letter-spacing: -.03em; }
+  .mist .glass {
+    margin-top: 12px; background: rgba(255,255,255,.62);
+    border: 1px solid rgba(255,255,255,.8); border-radius: 22px;
+    backdrop-filter: blur(16px); padding: 12px;
+    box-shadow: 0 12px 30px rgba(30,40,50,.12);
   }
-  .t-forge .orb {
-    width: 74px; height: 74px; border-radius: 50%;
-    margin-left: auto;
-    background: radial-gradient(circle at 40% 35%, #fff, #d9d9d9 42%, #8d8d8d);
-    color: #111; font-weight: 750; border: 0; font: inherit;
-    box-shadow: 0 8px 20px rgba(0,0,0,.4);
+  .mist .who { display: flex; gap: 10px; align-items: center; }
+  .mist .who img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; }
+  .mist .line { display: flex; gap: 10px; align-items: center; padding: 8px 0; }
+  .mist .line img { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; }
+  .mist .line b { display: block; font-size: 14px; }
+  .mist .line span { font-size: 12px; color: #5d6b76; }
+  .mist .go {
+    margin-top: 12px; width: 100%; border: 0; border-radius: 16px;
+    background: #111; color: #fff; padding: 14px; font-weight: 700;
   }
-  .t-forge .foot { display: flex; align-items: flex-end; margin-top: 8px; }
+
+  /* 脉冲 — 只用 pulse-* */
+  .pulse { color: #f4f7ff; }
+  .pulse .bg {
+    position: absolute; inset: 0;
+    background: url("theme-assets/pulse-horizon.jpg") center / cover no-repeat;
+  }
+  .pulse .bg::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(5,6,12,.2), rgba(5,6,12,.82) 70%);
+  }
+  .pulse h2 { font-size: 32px; margin: 70px 0 0; letter-spacing: -.04em; line-height: 1.05; }
+  .pulse .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 10px; margin-top: 16px; }
+  .pulse .glass {
+    background: rgba(10,12,20,.45); border: 1px solid rgba(255,255,255,.16);
+    border-radius: 18px; padding: 12px; backdrop-filter: blur(12px);
+  }
+  .pulse .shot { border-radius: 18px; overflow: hidden; height: 120px; border: 1px solid rgba(255,255,255,.16); }
+  .pulse .shot img { width: 100%; height: 100%; object-fit: cover; }
+  .pulse .glass b { font-size: 22px; display: block; }
+  .pulse .glass span { font-size: 12px; opacity: .75; }
+  .pulse .wide { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
+  .pulse .shots { display: flex; gap: 10px; margin-top: 10px; }
+  .pulse .shots img { flex: 1; height: 64px; object-fit: cover; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); }
+  .pulse .go {
+    margin-top: 14px; width: 100%; border: 0; border-radius: 999px; padding: 14px; font-weight: 700; color: #fff;
+    background: linear-gradient(90deg, #7c4dff, #3aa0ff);
+  }
+
+  /* 锻火 — 只用 forge-* */
+  .forge { color: #f7f7f7; background: #070707; }
+  .forge .plate {
+    margin-top: 12px; border-radius: 24px; overflow: hidden; position: relative;
+    border: 1px solid rgba(255,120,40,.45);
+    box-shadow: 0 0 28px rgba(255,90,20,.16);
+    background: #0c0c0c;
+  }
+  .forge .plate img.wide { width: 100%; height: 150px; object-fit: cover; display: block; }
+  .forge .plate .pad { padding: 14px; }
+  .forge .plate h3 { margin: 0; font-size: 30px; letter-spacing: -.03em; }
+  .forge .badge {
+    display: inline-block; margin-top: 8px; border-radius: 999px; padding: 4px 10px;
+    border: 1px solid rgba(255,150,60,.7); color: #ffc29a; font-size: 12px;
+  }
+  .forge .row { display: flex; gap: 10px; margin-top: 12px; }
+  .forge .mini {
+    flex: 1; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,120,40,.35);
+    background: #111;
+  }
+  .forge .mini img { width: 100%; height: 92px; object-fit: cover; display: block; }
+  .forge .mini div { padding: 8px 10px 10px; font-size: 13px; }
+  .forge .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .forge .orb {
+    width: 72px; height: 72px; border-radius: 50%; border: 0;
+    background: radial-gradient(circle at 35% 30%, #fff, #dedede 40%, #9a9a9a);
+    color: #111; font-weight: 800;
+  }
 </style>
 </head>
 <body>
   <div class="top">
-    <h1>按参考图改过的健身记录预览</h1>
-    <p>四套都是同一件事：本周训练量、今天的组和开始训练。只换气质，不做成金融页或洗衣页。</p>
+    <h1>带画面的健身记录预览</h1>
+    <p>四套各用自己的图，互不重复。点上面切换。</p>
     <div class="tabs" id="tabs"></div>
   </div>
   <div class="stage" id="stage"></div>
 <script>
+const A = "theme-assets";
 const themes = [
   {
-    id: 'ember',
-    name: '余烬',
+    id: "ember",
+    name: "余烬",
     html: `
-      <div class="phone"><div class="t-ember"><div class="glow"></div><div class="screen">
-        <div class="kicker">本周训练</div>
-        <div class="hero-num">12,480</div>
-        <div class="sub">公斤 · 容量。上次推日 60kg × 8。</div>
-        <div class="metrics">
-          <div class="metric"><span>完成组</span><b>24</b></div>
-          <div class="metric"><span>动作</span><b>6</b></div>
+    <div class="phone"><div class="ember">
+      <div class="bg"></div>
+      <div class="screen">
+        <div class="kicker">本周 · 推日</div>
+        <div class="hero-photo" style="margin-top:12px">
+          <img src="${A}/ember-bench.jpg" alt="卧推台暖光" />
+          <div class="cap"><span class="kicker">容量</span><strong>12,480</strong><span>公斤</span></div>
         </div>
-        <div class="bars">
-          <span style="font-size:12px;opacity:.7">近七次容量</span>
-          <div class="cols">
-            <i style="height:40%"></i><i style="height:55%"></i><i style="height:48%"></i>
-            <i style="height:70%"></i><i style="height:62%"></i><i style="height:88%"></i><i style="height:76%"></i>
-          </div>
+        <div class="chips">
+          <div class="chip"><span>完成组</span><b>24</b></div>
+          <div class="chip"><span>动作</span><b>6</b></div>
+          <div class="chip"><span>休息</span><b>90s</b></div>
         </div>
-        <div class="actions">
-          <button class="pill">开始训练</button>
-          <button class="ghost">推日模板</button>
-        </div>
-        <div class="list">
-          <div class="item"><span>杠铃卧推</span><b>60 × 8</b></div>
-          <div class="item"><span>坐姿划船</span><b>52 × 10</b></div>
-          <div class="item"><span>深蹲</span><b>80 × 5</b></div>
-        </div>
-      </div></div></div>`
+        <div class="ex"><img src="${A}/ember-dumbbell.jpg" alt="哑铃" /><div><b>哑铃卧推</b><span>上次 28kg × 8</span></div></div>
+        <div class="ex"><img src="${A}/ember-cable.jpg" alt="绳索" /><div><b>绳索下压</b><span>上次 35kg × 12</span></div></div>
+        <div class="ex"><img src="${A}/ember-gym.jpg" alt="场馆" /><div><b>器械区</b><span>推日收尾</span></div></div>
+        <button class="go">开始训练</button>
+      </div>
+    </div></div>`
   },
   {
-    id: 'mist',
-    name: '薄雾',
+    id: "mist",
+    name: "薄雾",
     html: `
-      <div class="phone"><div class="t-mist">
-        <svg class="scene" viewBox="0 0 210 280" aria-hidden="true">
-          <ellipse cx="120" cy="210" rx="70" ry="18" fill="rgba(0,0,0,.12)"/>
-          <rect x="78" y="78" width="18" height="120" rx="8" fill="#2b333a"/>
-          <rect x="132" y="78" width="18" height="120" rx="8" fill="#2b333a"/>
-          <rect x="40" y="118" width="148" height="16" rx="8" fill="#1c2126"/>
-          <circle cx="36" cy="126" r="22" fill="#3a434c"/>
-          <circle cx="192" cy="126" r="22" fill="#3a434c"/>
-          <circle cx="108" cy="70" r="26" fill="#e7c2a8"/>
-          <path d="M78 110c10 28 52 28 64 0" fill="none" stroke="#1c2126" stroke-width="8" stroke-linecap="round"/>
-        </svg>
-        <div class="screen">
-          <div class="kicker">今天 · 推日</div>
-          <h2>还有两组</h2>
-          <div class="glass">
-            <div class="step"><div class="dot">1</div><div><b>杠铃卧推</b><span>60kg × 8 · 已完成</span></div></div>
-            <div class="step"><div class="dot">2</div><div><b>上斜哑铃</b><span>22kg × 10 · 已完成</span></div></div>
-            <div class="step"><div class="dot off">3</div><div><b>绳索夹胸</b><span>下一组 · 休息 90 秒</span></div></div>
-          </div>
-          <div class="glass" style="display:flex;justify-content:space-between;align-items:center">
-            <div><b>组间</b><div class="sub" style="margin:0">还剩</div></div>
-            <div style="font-size:32px;font-weight:720">01:12</div>
-          </div>
-          <button class="pill">继续下一组</button>
+    <div class="phone"><div class="mist">
+      <div class="bg"></div>
+      <div class="screen">
+        <div class="kicker">今天</div>
+        <h2>推日进行中</h2>
+        <div class="glass who">
+          <img src="${A}/mist-train.jpg" alt="训练中" />
+          <div><b>下一组 · 坐姿划船</b><div style="font-size:12px;color:#5d6b76">休息还剩 01:12</div></div>
         </div>
-      </div></div>`
+        <div class="glass">
+          <div class="line"><img src="${A}/mist-barbell.jpg" alt="杠铃" /><div><b>杠铃卧推</b><span>60kg × 8 · 已完成</span></div></div>
+          <div class="line"><img src="${A}/mist-dumbbell.jpg" alt="哑铃" /><div><b>上斜哑铃</b><span>22kg × 10 · 已完成</span></div></div>
+          <div class="line"><img src="${A}/mist-row.jpg" alt="划船" /><div><b>坐姿划船</b><span>待做</span></div></div>
+        </div>
+        <button class="go">继续下一组</button>
+      </div>
+    </div></div>`
   },
   {
-    id: 'pulse',
-    name: '脉冲',
+    id: "pulse",
+    name: "脉冲",
     html: `
-      <div class="phone"><div class="t-pulse"><div class="horizon"></div><div class="screen">
+    <div class="phone"><div class="pulse">
+      <div class="bg"></div>
+      <div class="screen">
         <div class="kicker">健身记录</div>
-        <h2>把这次重量<br>留在这条线上</h2>
-        <div class="floaters">
-          <div class="glass"><span>卧推</span><b>60kg</b></div>
-          <div class="glass"><span>连续</span><b>4 次</b></div>
-          <div class="glass"><span>今天组数</span><b>9</b></div>
-          <div class="glass"><span>休息</span><b>90s</b></div>
+        <h2>这条线还在往上</h2>
+        <div class="grid">
+          <div class="shot"><img src="${A}/pulse-bar.jpg" alt="发光杠铃" /></div>
+          <div class="glass"><span>卧推</span><b>60kg</b><span>连续 4 次</span></div>
         </div>
-        <div class="glass ring-card">
-          <svg width="72" height="72" viewBox="0 0 72 72">
-            <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="8"/>
-            <circle cx="36" cy="36" r="28" fill="none" stroke="url(#g)" stroke-width="8" stroke-linecap="round"
-              stroke-dasharray="120 176" transform="rotate(-90 36 36)"/>
-            <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-              <stop stop-color="#7c4dff"/><stop offset="1" stop-color="#3ec5ff"/>
-            </linearGradient></defs>
+        <div class="glass wide">
+          <svg width="74" height="74" viewBox="0 0 72 72" aria-hidden="true">
+            <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="8"/>
+            <circle cx="36" cy="36" r="28" fill="none" stroke="url(#pg)" stroke-width="8" stroke-linecap="round" stroke-dasharray="120 176" transform="rotate(-90 36 36)"/>
+            <defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7c4dff"/><stop offset="1" stop-color="#3ec5ff"/></linearGradient></defs>
           </svg>
-          <div><b>推日完成 68%</b><div class="sub">卧推、飞鸟已做，下压还没动</div></div>
+          <div><b style="font-size:18px">推日 68%</b><div style="font-size:12px;opacity:.75;margin-top:4px">卧推已做，深蹲架还没动</div></div>
         </div>
-        <div class="actions">
-          <button class="pill">开始训练</button>
-          <button class="ghost">历史</button>
+        <div class="shots">
+          <img src="${A}/pulse-rack.jpg" alt="深蹲架" />
+          <img src="${A}/pulse-horizon.jpg" alt="光带场馆" />
         </div>
-      </div></div></div>`
+        <button class="go">开始训练</button>
+      </div>
+    </div></div>`
   },
   {
-    id: 'forge',
-    name: '锻火',
+    id: "forge",
+    name: "锻火",
     html: `
-      <div class="phone"><div class="t-forge"><div class="screen">
-        <div class="kicker">训练中</div>
-        <div class="card">
-          <svg width="100%" height="70" viewBox="0 0 300 70" aria-hidden="true">
-            <path d="M20 40 H80" stroke="#ff6a1a" stroke-width="3" filter="url(#glow)"/>
-            <rect x="86" y="22" width="128" height="36" rx="6" fill="none" stroke="#ff8a3d" stroke-width="2"/>
-            <path d="M220 40 H280" stroke="#ff6a1a" stroke-width="3"/>
-            <defs><filter id="glow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-          </svg>
+    <div class="phone"><div class="forge"><div class="screen">
+      <div class="kicker">训练中</div>
+      <div class="plate">
+        <img class="wide" src="${A}/forge-bar.jpg" alt="橙边杠铃" />
+        <div class="pad">
           <h3>杠铃卧推</h3>
           <div class="badge">第 2 组 · 60kg × 8</div>
           <div class="foot">
-            <div class="sub">上一组同样是 60 × 8</div>
+            <div style="opacity:.7;font-size:13px">上一组同样是 60 × 8</div>
             <button class="orb">完成</button>
           </div>
         </div>
-        <div class="card">
-          <h3 style="font-size:22px">上斜哑铃</h3>
-          <div class="badge">待做 · 22kg</div>
-        </div>
-        <div class="card" style="display:flex;justify-content:space-between;align-items:center">
-          <div><div class="kicker">休息</div><div style="font-size:36px;font-weight:750">87</div></div>
-          <div class="sub">秒后下一组</div>
-        </div>
-      </div></div></div>`
+      </div>
+      <div class="row">
+        <div class="mini"><img src="${A}/forge-dumbbell.jpg" alt="哑铃" /><div>哑铃推举<br>22kg 待做</div></div>
+        <div class="mini"><img src="${A}/forge-kettle.jpg" alt="壶铃" /><div>壶铃摇摆<br>16kg 待做</div></div>
+      </div>
+      <div class="plate"><div class="pad" style="display:flex;justify-content:space-between;align-items:center">
+        <div><div class="kicker">休息</div><div style="font-size:40px;font-weight:750">87</div></div>
+        <img src="${A}/forge-rack.jpg" alt="力量架" style="width:110px;height:72px;object-fit:cover;border-radius:14px" />
+      </div></div>
+    </div></div></div>`
   }
-]
+];
 
-const tabs = document.getElementById('tabs')
-const stage = document.getElementById('stage')
+const tabs = document.getElementById("tabs");
+const stage = document.getElementById("stage");
 function show(id) {
-  const t = themes.find(x => x.id === id)
-  stage.innerHTML = t.html
-  tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.id === id))
+  stage.innerHTML = themes.find(t => t.id === id).html;
+  tabs.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.id === id));
 }
 themes.forEach(t => {
-  const b = document.createElement('button')
-  b.textContent = t.name
-  b.dataset.id = t.id
-  b.onclick = () => show(t.id)
-  tabs.appendChild(b)
-})
-show('ember')
+  const b = document.createElement("button");
+  b.textContent = t.name;
+  b.dataset.id = t.id;
+  b.onclick = () => show(t.id);
+  tabs.appendChild(b);
+});
+show("ember");
 </script>
 </body>
 </html>

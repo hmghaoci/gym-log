@@ -139,6 +139,35 @@ button.tiny { padding: 8px 10px; }
   box-shadow: 0 8px 24px rgba(0,0,0,.12);
 }
 /* feature-only layout; theme session owns color tokens */
+.hero { margin: 10px 0 16px; }
+.kicker {
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hero-num {
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 720;
+  letter-spacing: -0.04em;
+  margin: 6px 0 4px;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+.section-head h2 { font-size: 16px; margin: 0; }
+.tpl-card {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 8px;
+}
+.tpl-card .list-btn { flex: 1; }
 .prog-chart {
   display: flex;
   align-items: flex-end;

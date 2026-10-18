@@ -1,4 +1,4 @@
-const APP_VERSION = '1.3.0'
+const APP_VERSION = '1.4.0'
 const UPDATE_URLS = [
   'https://github.com/hmghaoci/gym-log/releases/latest/download/latest.json',
   'https://raw.githubusercontent.com/hmghaoci/gym-log/main/release/latest.json',
@@ -8,6 +8,15 @@ const REST_KEY = 'gymlog.rest'
 const LANG_KEY = 'gymlog.lang'
 const REST_SOUND_KEY = 'gymlog.restSound'
 /** UI 会话占用 gymlog.theme，功能侧勿用 */
+
+function fmtVol(n) {
+  const v = Math.round(Number(n) || 0)
+  try {
+    return v.toLocaleString(typeof state !== 'undefined' && state.lang === 'en' ? 'en-US' : 'zh-CN')
+  } catch {
+    return String(v)
+  }
+}
 
 const I18N = {
   zh: {
@@ -81,6 +90,12 @@ const I18N = {
     progressEmpty: '还没有可统计的动作。',
     progressBest: (kg, reps) => `最好 ${kg || 0} 公斤 × ${reps || 0} 次`,
     progressSession: (n) => `近 ${n} 次训练`,
+    settings: '设置',
+    weekVolume: '本周训练',
+    volumeUnit: '公斤 · 容量',
+    weekSessions: n => `本周练了 ${n} 次`,
+    histVol: (vol, n, names) => `${fmtVol(vol)} 公斤 · ${n} 个动作 · ${names}`,
+    workoutVol: vol => `本次容量 ${fmtVol(vol)} 公斤`,
     body: {
       chest: '胸', back: '背', shoulders: '肩', 'upper arms': '手臂', 'lower arms': '前臂',
       'upper legs': '大腿', 'lower legs': '小腿', waist: '核心', cardio: '有氧', neck: '颈部',
@@ -171,6 +186,12 @@ const I18N = {
     progressEmpty: 'No tracked exercises yet.',
     progressBest: (kg, reps) => `Best ${kg || 0} kg × ${reps || 0}`,
     progressSession: (n) => `Last ${n} sessions`,
+    settings: 'Settings',
+    weekVolume: 'This week',
+    volumeUnit: 'kg · volume',
+    weekSessions: n => `${n} workouts this week`,
+    histVol: (vol, n, names) => `${fmtVol(vol)} kg · ${n} exercises · ${names}`,
+    workoutVol: vol => `Volume ${fmtVol(vol)} kg`,
     body: {
       chest: 'Chest', back: 'Back', shoulders: 'Shoulders', 'upper arms': 'Arms', 'lower arms': 'Forearms',
       'upper legs': 'Legs', 'lower legs': 'Calves', waist: 'Core', cardio: 'Cardio', neck: 'Neck',
@@ -684,11 +705,45 @@ function fmt(ts) {
   return `${d.getMonth() + 1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+function weekStartMs(ts = Date.now()) {
+  const d = new Date(ts)
+  const day = d.getDay()
+  const back = day === 0 ? 6 : day - 1
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - back)
+  return d.getTime()
+}
+
+function setVolume(set) {
+  return (Number(set.kg) || 0) * (Number(set.reps) || 0)
+}
+
+function workoutVolume(w) {
+  let total = 0
+  for (const ex of w.exercises || []) {
+    for (const set of ex.sets || []) total += setVolume(set)
+  }
+  return total
+}
+
+function weekStats(store) {
+  const start = weekStartMs()
+  let volume = 0
+  let sessions = 0
+  for (const w of store.workouts || []) {
+    if ((w.started || 0) < start) continue
+    sessions += 1
+    volume += workoutVolume(w)
+  }
+  return { volume, sessions }
+}
+
 function render() {
   const root = document.getElementById('app')
   const store = loadStore()
   let html = ''
   if (state.screen === 'home') html = homeView(store)
+  else if (state.screen === 'settings') html = settingsView()
   else if (state.screen === 'pick') html = pickView()
   else if (state.screen === 'workout') html = workoutView()
   else if (state.screen === 'detail') html = detailView(store)
@@ -706,13 +761,41 @@ function render() {
 
 function homeView(store) {
   const sep = state.lang === 'zh' ? '、' : ', '
+  const week = weekStats(store)
   const items = store.workouts.map(w => {
     const names = w.exercises.map(e => exName(e)).slice(0, 3).join(sep)
-    return `<button class="list-btn" data-open="${w.id}"><b>${fmt(w.started)}</b><div class="muted">${t('histLine', w.exercises.length, names)}</div></button>`
+    const vol = workoutVolume(w)
+    return `<button class="list-btn" data-open="${w.id}"><b>${fmt(w.started)}</b><div class="muted">${t('histVol', vol, w.exercises.length, names)}</div></button>`
   }).join('')
+  const tplCards = store.templates.map(tpl => `
+    <div class="tpl-card">
+      <button class="list-btn" data-tpl="${tpl.id}" style="margin:0"><b>${escapeHtml(tpl.name)}</b><div class="muted">${tpl.exercises.map(ex => exName(ex)).slice(0, 3).join(sep)}</div></button>
+      <button class="danger tiny" data-del-tpl="${tpl.id}">${state.confirmId === `tpl:${tpl.id}` ? t('deleteConfirm') : t('removeSet')}</button>
+    </div>
+  `).join('')
+  return `
+    <div class="row"><h1>${t('appTitle')}</h1><button class="ghost tiny" id="settingsBtn">${t('settings')}</button></div>
+    <div class="hero">
+      <div class="kicker">${t('weekVolume')}</div>
+      <div class="hero-num">${fmtVol(week.volume)}</div>
+      <div class="muted">${t('volumeUnit')} · ${t('weekSessions', week.sessions)}</div>
+    </div>
+    <button class="primary" id="start">${t('start')}</button>
+    <div class="section-head">
+      <h2>${t('templates')}</h2>
+      <button class="ghost tiny" id="newTpl">${t('newTemplate')}</button>
+    </div>
+    ${tplCards || `<p class="muted">${t('noTemplates')}</p>`}
+    <button class="ghost" id="progressBtn" style="width:100%;margin-top:10px">${t('progress')}</button>
+    <div class="section-head" style="margin-top:18px"><h2>${t('history')}</h2></div>
+    ${items || `<p class="muted">${t('noHistory')}</p>`}
+  `
+}
+
+function settingsView() {
   const soundOn = restSoundOn()
   return `
-    <div class="row"><h1>${t('appTitle')}</h1><button class="ghost" id="check">${t('checkUpdate')}</button></div>
+    <div class="row"><h1>${t('settings')}</h1><button class="ghost" id="back">${t('back')}</button></div>
     <p class="muted">v${APP_VERSION}. ${t('versionLocal')}</p>
     <div class="card">
       <b>${t('lang')}</b>
@@ -722,24 +805,6 @@ function homeView(store) {
       </div>
     </div>
     ${themeBlockHtml()}
-    <div class="card">
-      <b>${t('backup')}</b>
-      <div class="row" style="margin-top:8px;gap:8px">
-        <button class="ghost" id="exportBtn" style="flex:1">${t('exportData')}</button>
-        <button class="ghost" id="importBtn" style="flex:1">${state.importArmed ? t('importConfirm') : t('importData')}</button>
-      </div>
-      <input id="importFile" type="file" accept="application/json,.json" hidden />
-    </div>
-    <h2 style="font-size:16px">${t('templates')}</h2>
-    ${store.templates.map(tpl => `
-      <div class="row" style="margin-top:8px">
-        <button class="list-btn" data-tpl="${tpl.id}" style="margin:0;flex:1"><b>${escapeHtml(tpl.name)}</b><div class="muted">${tpl.exercises.map(ex => exName(ex)).slice(0, 3).join(sep)}</div></button>
-        <button class="danger tiny" data-del-tpl="${tpl.id}">${state.confirmId === `tpl:${tpl.id}` ? t('deleteConfirm') : t('removeSet')}</button>
-      </div>
-    `).join('') || `<p class="muted">${t('noTemplates')}</p>`}
-    <button class="ghost" id="newTpl" style="width:100%;margin-top:8px">${t('newTemplate')}</button>
-    <button class="ghost" id="progressBtn" style="width:100%;margin-top:8px">${t('progress')}</button>
-    <button class="primary" id="start" style="margin-top:10px">${t('start')}</button>
     <div class="card">
       <b>${t('restTitle')}</b>
       <div class="chips" style="margin-top:8px">
@@ -753,9 +818,16 @@ function homeView(store) {
         </div>
       </div>
     </div>
-    <h2 style="font-size:16px">${t('history')}</h2>
-    ${items || `<p class="muted">${t('noHistory')}</p>`}
-    <p class="muted">${t('dataCredit')}</p>
+    <div class="card">
+      <b>${t('backup')}</b>
+      <div class="row" style="margin-top:8px;gap:8px">
+        <button class="ghost" id="exportBtn" style="flex:1">${t('exportData')}</button>
+        <button class="ghost" id="importBtn" style="flex:1">${state.importArmed ? t('importConfirm') : t('importData')}</button>
+      </div>
+      <input id="importFile" type="file" accept="application/json,.json" hidden />
+    </div>
+    <button class="ghost" id="check" style="width:100%;margin-top:8px">${t('checkUpdate')}</button>
+    <p class="muted" style="margin-top:12px">${t('dataCredit')}</p>
   `
 }
 
@@ -884,8 +956,10 @@ function detailView(store) {
     </div>
   `).join('')
   const delLabel = state.confirmId === `wo:${w.id}` ? t('deleteConfirm') : t('deleteWorkout')
+  const vol = workoutVolume(w)
   return `
     <div class="row"><h1>${fmt(w.started)}</h1><button class="ghost" id="back">${t('back')}</button></div>
+    <p class="muted">${t('workoutVol', vol)}</p>
     ${blocks}
     <button class="danger" id="delWorkout" style="width:100%;margin-top:8px">${delLabel}</button>
   `
@@ -902,6 +976,7 @@ function bind() {
   }
   on('start', startSession)
   on('check', checkUpdate)
+  on('settingsBtn', () => { state.screen = 'settings'; state.importArmed = false; render() })
   on('pick', () => { state.screen = 'pick'; render() })
   on('back', () => {
     if (state.screen === 'pick' && state.pickFor === 'template') {
@@ -916,7 +991,7 @@ function bind() {
       render()
       return
     }
-    if (state.screen === 'progress') {
+    if (state.screen === 'progress' || state.screen === 'settings') {
       state.screen = 'home'
       render()
       return

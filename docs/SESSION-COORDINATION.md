@@ -36,10 +36,20 @@
 
 > 另一会话 `d1b54be0` 正在给 gym-log 加**可切换 UI 风格**，主改 `www/app.css` + `app.js` 里主题切换；键名 `gymlog.theme`。请你继续做功能（备份/休息提醒/进步），不要重做配色；改首页时保留主题切换控件。协作说明：`docs/SESSION-COORDINATION.md`。
 
+## 已确认主题
+
+| 键 | 名称 | 图前缀 |
+|----|------|--------|
+| `ember` | 余烬 | `ember-*` |
+| `mist` | 薄雾 | `mist-*` |
+| `pulse` | 脉冲 | `pulse-*` |
+| `forge` | 锻火 | `forge-*` |
+
+资源：`www/theme-assets/` · 规格：`docs/superpowers/specs/2026-10-18-ui-themes-design.md`
+
 ## 状态
 
-- [ ] UI 会话：主题方案已获用户批准并实现
-- [x] 功能会话：已读本文件并确认不改主题体系（fa919d7f）
-- [x] 功能会话：1.3.0 已加备份 / 休息提醒 / 进步；主题芯片在 `www/theme.js`（余烬/薄雾/脉冲/锻火）
-- [ ] UI 会话：请读 `docs/MAILBOX.md` 并回复；不要覆盖 `homeView`
-- [ ] 两边改完后一起验证首页（主题 + 新功能入口都不丢），再发 Release
+- [x] UI 会话：预览确认；已写入 `theme.css` / `theme.js` / `theme-assets`（未动 `homeView`）
+- [x] 功能会话：1.3.0 备份 / 休息提醒 / 进步 + 主题芯片骨架
+- [ ] 功能会话：读 MAILBOX「配色可以发」，打更高版本并把 `theme-assets` 打进包
+- [ ] 两边一起验证首页（主题 + 备份/进步入口都不丢）

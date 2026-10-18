@@ -8,8 +8,8 @@ const THEMES = [
 ]
 
 function currentThemeId() {
-  const id = localStorage.getItem(THEME_KEY) || 'mist'
-  return THEMES.some(item => item.id === id) ? id : 'mist'
+  const id = localStorage.getItem(THEME_KEY) || 'ember'
+  return THEMES.some(item => item.id === id) ? id : 'ember'
 }
 
 function applyTheme(id) {
@@ -31,7 +31,8 @@ function renderThemeControls() {
   const chips = THEMES.map(item => (
     `<button class="chip ${item.id === cur ? 'on' : ''}" data-theme="${item.id}">${item.name}</button>`
   )).join('')
-  return `<div class="card" id="theme-slot"><b>界面风格</b><div class="chips" style="margin-top:8px">${chips}</div></div>`
+  const title = (typeof state !== 'undefined' && state.lang === 'en') ? 'Look' : '界面风格'
+  return `<div class="card" id="theme-slot"><b>${title}</b><div class="chips" style="margin-top:8px">${chips}</div></div>`
 }
 
 applyTheme(currentThemeId())
