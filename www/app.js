@@ -1,5 +1,8 @@
 const APP_VERSION = '1.1.0'
-const UPDATE_URL = 'https://raw.githubusercontent.com/hmghaoci/gym-log/main/release/latest.json'
+const UPDATE_URLS = [
+  'https://github.com/hmghaoci/gym-log/releases/latest/download/latest.json',
+  'https://raw.githubusercontent.com/hmghaoci/gym-log/main/release/latest.json',
+]
 const STORE_KEY = 'gymlog.v1'
 const REST_KEY = 'gymlog.rest'
 const LANG_KEY = 'gymlog.lang'
@@ -186,31 +189,45 @@ function cmpVer(a, b) {
   return 0
 }
 
+async function loadLatest() {
+  let lastError = 'http'
+  for (const url of UPDATE_URLS) {
+    try {
+      const res = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error(String(res.status))
+      return await res.json()
+    } catch (err) {
+      lastError = err && err.message ? err.message : 'http'
+    }
+  }
+  throw new Error(lastError)
+}
+
 async function checkUpdate() {
   if (navigator.onLine === false) {
     toast(t('offline'))
     return
   }
   try {
-    const res = await fetch(`${UPDATE_URL}?t=${Date.now()}`, { cache: 'no-store' })
-    if (!res.ok) throw new Error('http')
-    const data = await res.json()
+    const data = await loadLatest()
     if (!data.version || cmpVer(data.version, APP_VERSION) <= 0) {
       toast(t('latest', APP_VERSION))
       return
     }
     const updater = window.Capacitor?.Plugins?.CapacitorUpdater
     if (!window.Capacitor?.isNativePlatform?.() || !updater) {
+      if (data.apk) window.location.href = data.apk
       toast(t('foundApk', data.version))
       return
     }
     if (!data.url || !data.checksum) {
+      if (data.apk) window.location.href = data.apk
       toast(t('foundNoBundle', data.version))
       return
     }
     await applyBundle(updater, data)
-  } catch {
-    toast(t('updateFail'))
+  } catch (err) {
+    toast(`${t('updateFail')} (${err && err.message ? err.message : 'error'})`)
   }
 }
 
