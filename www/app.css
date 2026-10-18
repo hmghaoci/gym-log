@@ -17,6 +17,7 @@ body {
 }
 button, input { font: inherit; }
 #app { max-width: 520px; margin: 0 auto; min-height: 100%; padding: 16px 16px 32px; }
+body.has-tabs #app { padding-bottom: 88px; }
 h1 { font-size: 22px; margin: 8px 0 4px; }
 .muted { color: var(--muted); font-size: 13px; line-height: 1.5; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -278,3 +279,63 @@ button.primary.orb {
 }
 .mini img { width: 100%; height: 88px; object-fit: cover; display: block; }
 .mini span { display: block; padding: 8px 10px 10px; font-size: 13px; }
+
+.today-card .today-name { display: block; font-size: 22px; margin-top: 6px; }
+.select {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+}
+.plan-day { margin-top: 8px; }
+.heat-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 10px;
+}
+.heat {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--line) 80%, transparent);
+}
+.heat.l1 { background: color-mix(in srgb, var(--accent) 35%, var(--card)); }
+.heat.l2 { background: color-mix(in srgb, var(--accent) 65%, var(--card)); }
+.heat.l3 { background: var(--accent); }
+.heat.lf { background: transparent; }
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+.tab {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 8px 2px;
+  border-radius: 10px;
+}
+.tab.on {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  font-weight: 600;
+}
+.today-card .today-name { font-size: 22px; }

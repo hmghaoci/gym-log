@@ -1,4 +1,4 @@
-const APP_VERSION = '1.4.0'
+const APP_VERSION = '1.5.0'
 const UPDATE_URLS = [
   'https://github.com/hmghaoci/gym-log/releases/latest/download/latest.json',
   'https://raw.githubusercontent.com/hmghaoci/gym-log/main/release/latest.json',
@@ -96,6 +96,23 @@ const I18N = {
     weekSessions: n => `本周练了 ${n} 次`,
     histVol: (vol, n, names) => `${fmtVol(vol)} 公斤 · ${n} 个动作 · ${names}`,
     workoutVol: vol => `本次容量 ${fmtVol(vol)} 公斤`,
+    tabHome: '首页',
+    tabPlan: '计划',
+    tabHistory: '历史',
+    tabStats: '数据',
+    tabSettings: '设置',
+    todayTitle: '今天',
+    todayRest: '今天休息。也可以开一场空训练。',
+    startToday: '开始今天的训练',
+    startEmpty: '开一场空训练',
+    planTitle: '周计划',
+    planHint: '给每一天安排一个模板，首页会按今天自动打开。',
+    restDay: '休息',
+    assignTpl: '安排模板',
+    statsTitle: '数据',
+    heatTitle: '近八周训练',
+    heatEmpty: '练过的日子会亮起来。',
+    days: ['日', '一', '二', '三', '四', '五', '六'],
     body: {
       chest: '胸', back: '背', shoulders: '肩', 'upper arms': '手臂', 'lower arms': '前臂',
       'upper legs': '大腿', 'lower legs': '小腿', waist: '核心', cardio: '有氧', neck: '颈部',
@@ -192,6 +209,23 @@ const I18N = {
     weekSessions: n => `${n} workouts this week`,
     histVol: (vol, n, names) => `${fmtVol(vol)} kg · ${n} exercises · ${names}`,
     workoutVol: vol => `Volume ${fmtVol(vol)} kg`,
+    tabHome: 'Home',
+    tabPlan: 'Plan',
+    tabHistory: 'History',
+    tabStats: 'Stats',
+    tabSettings: 'Settings',
+    todayTitle: 'Today',
+    todayRest: 'Rest day. You can still start an empty workout.',
+    startToday: 'Start today’s workout',
+    startEmpty: 'Start empty workout',
+    planTitle: 'Weekly plan',
+    planHint: 'Assign a routine to each weekday. Home opens today’s plan.',
+    restDay: 'Rest',
+    assignTpl: 'Assign routine',
+    statsTitle: 'Stats',
+    heatTitle: 'Last 8 weeks',
+    heatEmpty: 'Days you trained light up.',
+    days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     body: {
       chest: 'Chest', back: 'Back', shoulders: 'Shoulders', 'upper arms': 'Arms', 'lower arms': 'Forearms',
       'upper legs': 'Legs', 'lower legs': 'Calves', waist: 'Core', cardio: 'Cardio', neck: 'Neck',
@@ -286,11 +320,34 @@ function loadStore() {
     const data = JSON.parse(localStorage.getItem(STORE_KEY)) || {}
     if (!Array.isArray(data.workouts)) data.workouts = []
     if (!Array.isArray(data.templates)) data.templates = []
+    if (!Array.isArray(data.schedule) || data.schedule.length !== 7) {
+      data.schedule = ['', '', '', '', '', '', '']
+    }
     return data
   } catch {
-    return { workouts: [], templates: [] }
+    return { workouts: [], templates: [], schedule: ['', '', '', '', '', '', ''] }
   }
 }
+
+function setScheduleDay(day, tplId) {
+  const store = loadStore()
+  store.schedule[Number(day)] = tplId || ''
+  saveStore(store)
+}
+
+function templateById(store, id) {
+  if (!id) return null
+  return store.templates.find(item => item.id === id) || null
+}
+
+function todayTemplate(store) {
+  return templateById(store, store.schedule[new Date().getDay()])
+}
+
+/** 显示顺序：周一到周日（中文习惯），值仍是 Date.getDay() */
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
+
+const TAB_SCREENS = new Set(['home', 'plan', 'history', 'stats', 'settings'])
 function saveStore(data) {
   localStorage.setItem(STORE_KEY, JSON.stringify(data))
 }
@@ -481,15 +538,22 @@ function saveDraft() {
     return
   }
   const store = loadStore()
-  store.templates.unshift({
-    id: Date.now().toString(36),
+  const payload = {
+    id: state.draft.replaceId || Date.now().toString(36),
     name,
     exercises: state.draft.exercises.map(ex => ({ id: ex.id, name: ex.name, zh: ex.zh || '' })),
-  })
+  }
+  if (state.draft.replaceId) {
+    const idx = store.templates.findIndex(item => item.id === state.draft.replaceId)
+    if (idx >= 0) store.templates[idx] = payload
+    else store.templates.unshift(payload)
+  } else {
+    store.templates.unshift(payload)
+  }
   saveStore(store)
   state.draft = null
   state.pickFor = 'session'
-  state.screen = state.session ? 'workout' : 'home'
+  state.screen = state.session ? 'workout' : 'plan'
   toast(t('templateSaved'))
   render()
 }
@@ -503,6 +567,7 @@ function deleteTemplate(id) {
   }
   const store = loadStore()
   store.templates = store.templates.filter(item => item.id !== id)
+  store.schedule = store.schedule.map(day => (day === id ? '' : day))
   saveStore(store)
   state.confirmId = null
   render()
@@ -520,7 +585,7 @@ function deleteWorkout(id) {
   saveStore(store)
   state.confirmId = null
   state.openId = null
-  state.screen = 'home'
+  state.screen = 'history'
   render()
 }
 
@@ -616,7 +681,10 @@ function importBackupFile(file) {
       const store = data.store || data
       if (!store || !Array.isArray(store.workouts)) throw new Error('bad')
       if (!Array.isArray(store.templates)) store.templates = []
-      saveStore({ workouts: store.workouts, templates: store.templates })
+      if (!Array.isArray(store.schedule) || store.schedule.length !== 7) {
+        store.schedule = ['', '', '', '', '', '', '']
+      }
+      saveStore({ workouts: store.workouts, templates: store.templates, schedule: store.schedule })
       if (data.rest != null) setRestSec(data.rest)
       if (data.lang === 'en' || data.lang === 'zh') {
         state.lang = data.lang
@@ -738,18 +806,36 @@ function weekStats(store) {
   return { volume, sessions }
 }
 
+function tabBar() {
+  if (!TAB_SCREENS.has(state.screen)) return ''
+  const tabs = [
+    ['home', 'tabHome'],
+    ['plan', 'tabPlan'],
+    ['history', 'tabHistory'],
+    ['stats', 'tabStats'],
+    ['settings', 'tabSettings'],
+  ]
+  return `<nav class="tabbar">${tabs.map(([id, key]) => (
+    `<button class="tab ${state.screen === id ? 'on' : ''}" data-tab="${id}">${t(key)}</button>`
+  )).join('')}</nav>`
+}
+
 function render() {
   const root = document.getElementById('app')
   const store = loadStore()
   let html = ''
   if (state.screen === 'home') html = homeView(store)
+  else if (state.screen === 'plan') html = planView(store)
+  else if (state.screen === 'history') html = historyView(store)
+  else if (state.screen === 'stats') html = statsView(store)
   else if (state.screen === 'settings') html = settingsView()
   else if (state.screen === 'pick') html = pickView()
   else if (state.screen === 'workout') html = workoutView()
   else if (state.screen === 'detail') html = detailView(store)
   else if (state.screen === 'template') html = templateView()
   else if (state.screen === 'progress') html = progressView()
-  root.innerHTML = html
+  root.innerHTML = html + tabBar()
+  document.body.classList.toggle('has-tabs', TAB_SCREENS.has(state.screen))
   bind()
   if (state.toast && state.restLeft <= 0) {
     const el = document.createElement('div')
@@ -757,6 +843,16 @@ function render() {
     el.textContent = state.toast
     root.appendChild(el)
   }
+}
+
+function historyListHtml(store) {
+  const sep = state.lang === 'zh' ? '、' : ', '
+  const items = store.workouts.map(w => {
+    const names = w.exercises.map(e => exName(e)).slice(0, 3).join(sep)
+    const vol = workoutVolume(w)
+    return `<button class="list-btn" data-open="${w.id}"><b>${fmt(w.started)}</b><div class="muted">${t('histVol', vol, w.exercises.length, names)}</div></button>`
+  }).join('')
+  return items || `<p class="muted">${t('noHistory')}</p>`
 }
 
 const THEME_LAYOUT_IMGS = {
@@ -776,47 +872,43 @@ function themeImg(index) {
   return list[index % list.length]
 }
 
-function homeView(store) {
+function todayActionsHtml(store) {
+  const today = todayTemplate(store)
   const sep = state.lang === 'zh' ? '、' : ', '
+  const dayLabel = t('days')[new Date().getDay()]
+  if (today) {
+    return `
+      <div class="kicker">${t('todayTitle')} · ${dayLabel}</div>
+      <b class="today-name">${escapeHtml(today.name)}</b>
+      <div class="muted" style="margin:6px 0 12px">${today.exercises.map(ex => exName(ex)).slice(0, 4).join(sep)}</div>
+      <button class="primary" id="startToday">${t('startToday')}</button>
+      <button class="ghost" id="start" style="width:100%;margin-top:8px">${t('startEmpty')}</button>
+    `
+  }
+  return `
+    <div class="kicker">${t('todayTitle')} · ${dayLabel}</div>
+    <p class="muted" style="margin:8px 0 12px">${t('todayRest')}</p>
+    <button class="primary" id="start">${t('startEmpty')}</button>
+  `
+}
+
+function homeView(store) {
   const week = weekStats(store)
   const theme = layoutTheme()
-  const items = store.workouts.map(w => {
-    const names = w.exercises.map(e => exName(e)).slice(0, 3).join(sep)
-    const vol = workoutVolume(w)
-    return `<button class="list-btn" data-open="${w.id}"><b>${fmt(w.started)}</b><div class="muted">${t('histVol', vol, w.exercises.length, names)}</div></button>`
-  }).join('')
-  const tplRows = store.templates.map((tpl, i) => `
-    <div class="shot-row">
-      <button class="list-btn shot-main" data-tpl="${tpl.id}">
-        <img src="${themeImg(i + 1)}" alt="" />
-        <span><b>${escapeHtml(tpl.name)}</b><span class="muted">${tpl.exercises.map(ex => exName(ex)).slice(0, 3).join(sep) || t('templateEmpty')}</span></span>
-      </button>
-      <button class="danger tiny" data-del-tpl="${tpl.id}">${state.confirmId === `tpl:${tpl.id}` ? t('deleteConfirm') : t('removeSet')}</button>
-    </div>
-  `).join('')
-  const history = `
-    <div class="section-head"><h2>${t('history')}</h2></div>
-    ${items || `<p class="muted">${t('noHistory')}</p>`}
-  `
-  const head = `<div class="row"><h1>${t('appTitle')}</h1><button class="ghost tiny" id="settingsBtn">${t('settings')}</button></div>`
+  const head = `<div class="row"><h1>${t('appTitle')}</h1></div>`
+  const todayCard = `<div class="card today-card">${todayActionsHtml(store)}</div>`
 
   if (theme === 'mist') {
     return `
       <div class="layout layout-mist">
         ${head}
         <p class="kicker">${t('weekVolume')}</p>
-        <h2 class="layout-title">${t('weekSessions', week.sessions)}</h2>
+        <h2 class="layout-title">${fmtVol(week.volume)} <span>${t('volumeUnit')}</span></h2>
         <div class="card shot-who">
           <img src="${themeImg(0)}" alt="" />
-          <div><b>${fmtVol(week.volume)} ${t('volumeUnit')}</b><div class="muted">${t('weekVolume')}</div></div>
+          <div><b>${t('weekSessions', week.sessions)}</b><div class="muted">${t('weekVolume')}</div></div>
         </div>
-        <div class="card">
-          ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
-          <button class="ghost tiny" id="newTpl" style="width:100%;margin-top:8px">${t('newTemplate')}</button>
-        </div>
-        <button class="primary" id="start">${t('start')}</button>
-        <button class="ghost" id="progressBtn" style="width:100%;margin-top:8px">${t('progress')}</button>
-        ${history}
+        ${todayCard}
       </div>
     `
   }
@@ -832,19 +924,15 @@ function homeView(store) {
         <h2 class="layout-title">${fmtVol(week.volume)}<span> ${t('volumeUnit')}</span></h2>
         <div class="pulse-grid">
           <img class="pulse-shot" src="${themeImg(0)}" alt="" />
-          <div class="card"><span class="muted">${t('weekSessions', week.sessions)}</span><b class="pulse-kg">${store.templates.length}</b><span class="muted">${t('templates')}</span></div>
+          <div class="card">
+            <svg width="56" height="56" viewBox="0 0 72 72" aria-hidden="true">
+              <circle cx="36" cy="36" r="28" fill="none" stroke="currentColor" stroke-opacity=".2" stroke-width="8"/>
+              <circle cx="36" cy="36" r="28" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash} 176" transform="rotate(-90 36 36)"/>
+            </svg>
+            <b class="pulse-kg" style="font-size:18px;margin-top:6px">${t('weekSessions', week.sessions)}</b>
+          </div>
         </div>
-        <button class="card pulse-ring" id="progressBtn">
-          <svg width="64" height="64" viewBox="0 0 72 72" aria-hidden="true">
-            <circle cx="36" cy="36" r="28" fill="none" stroke="currentColor" stroke-opacity=".2" stroke-width="8"/>
-            <circle cx="36" cy="36" r="28" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash} 176" transform="rotate(-90 36 36)"/>
-          </svg>
-          <span><b>${t('progress')}</b><span class="muted">${t('weekSessions', week.sessions)}</span></span>
-        </button>
-        ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
-        <button class="ghost tiny" id="newTpl" style="margin-top:8px">${t('newTemplate')}</button>
-        <button class="primary" id="start" style="margin-top:12px">${t('start')}</button>
-        ${history}
+        ${todayCard}
       </div>
     `
   }
@@ -853,24 +941,15 @@ function homeView(store) {
     return `
       <div class="layout layout-forge">
         ${head}
-        <p class="kicker">${t('weekVolume')}</p>
         <div class="forge-plate">
           <img src="${themeImg(0)}" alt="" />
           <div class="forge-pad">
+            <div class="kicker">${t('weekVolume')}</div>
             <div class="hero-num">${fmtVol(week.volume)}</div>
             <div class="muted">${t('volumeUnit')} · ${t('weekSessions', week.sessions)}</div>
-            <div class="forge-foot">
-              <button class="ghost tiny" id="progressBtn">${t('progress')}</button>
-              <button class="primary orb" id="start">${t('start')}</button>
-            </div>
           </div>
         </div>
-        <div class="forge-minis">
-          <button class="mini" id="newTpl"><img src="${themeImg(1)}" alt="" /><span>${t('newTemplate')}</span></button>
-          <div class="mini"><img src="${themeImg(2)}" alt="" /><span>${store.templates.length} ${t('templates')}</span></div>
-        </div>
-        ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
-        ${history}
+        ${todayCard}
       </div>
     `
   }
@@ -886,18 +965,108 @@ function homeView(store) {
           <div class="muted">${t('volumeUnit')} · ${t('weekSessions', week.sessions)}</div>
         </div>
       </div>
-      <div class="metric-row">
-        <div class="card metric"><span class="muted">${t('templates')}</span><b>${store.templates.length}</b></div>
-        <div class="card metric"><span class="muted">${t('history')}</span><b>${store.workouts.length}</b></div>
+      ${todayCard}
+    </div>
+  `
+}
+
+function planView(store) {
+  const sep = state.lang === 'zh' ? '、' : ', '
+  const dayRows = DAY_ORDER.map(day => {
+    const selected = store.schedule[day] || ''
+    const opts = [`<option value="">${t('restDay')}</option>`]
+      .concat(store.templates.map(tpl => (
+        `<option value="${tpl.id}" ${tpl.id === selected ? 'selected' : ''}>${escapeHtml(tpl.name)}</option>`
+      )))
+    return `
+      <div class="card plan-day">
+        <div class="row"><b>${t('days')[day]}</b></div>
+        <select class="select" data-day="${day}">${opts.join('')}</select>
       </div>
-      <button class="primary" id="start">${t('start')}</button>
-      <div class="section-head">
-        <h2>${t('templates')}</h2>
-        <button class="ghost tiny" id="newTpl">${t('newTemplate')}</button>
-      </div>
-      ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
-      <button class="ghost" id="progressBtn" style="width:100%;margin-top:10px">${t('progress')}</button>
-      ${history}
+    `
+  }).join('')
+  const tplRows = store.templates.map(tpl => `
+    <div class="row" style="margin-top:8px">
+      <button class="list-btn" data-edit-tpl="${tpl.id}" style="margin:0;flex:1">
+        <b>${escapeHtml(tpl.name)}</b>
+        <div class="muted">${tpl.exercises.map(ex => exName(ex)).slice(0, 3).join(sep)}</div>
+      </button>
+      <button class="danger tiny" data-del-tpl="${tpl.id}">${state.confirmId === `tpl:${tpl.id}` ? t('deleteConfirm') : t('removeSet')}</button>
+    </div>
+  `).join('')
+  return `
+    <div class="row"><h1>${t('planTitle')}</h1><button class="ghost tiny" id="newTpl">${t('newTemplate')}</button></div>
+    <p class="muted">${t('planHint')}</p>
+    ${dayRows}
+    <div class="section-head"><h2>${t('templates')}</h2></div>
+    ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
+  `
+}
+
+function historyView(store) {
+  return `
+    <div class="row"><h1>${t('history')}</h1></div>
+    ${historyListHtml(store)}
+  `
+}
+
+function heatMapHtml(store) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const start = new Date(today)
+  const backToMonday = today.getDay() === 0 ? 6 : today.getDay() - 1
+  start.setDate(today.getDate() - backToMonday - 49)
+  const counts = new Map()
+  for (const w of store.workouts || []) {
+    const d = new Date(w.started)
+    d.setHours(0, 0, 0, 0)
+    counts.set(d.getTime(), (counts.get(d.getTime()) || 0) + 1)
+  }
+  const cells = []
+  for (let i = 0; i < 56; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const future = d.getTime() > today.getTime()
+    const n = future ? 0 : (counts.get(d.getTime()) || 0)
+    const level = future ? 'f' : n === 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : 3
+    cells.push(`<i class="heat l${level}" title="${d.toLocaleDateString()}"></i>`)
+  }
+  return `<div class="heat-grid">${cells.join('')}</div>`
+}
+
+function statsView(store) {
+  const list = trainedExercises()
+  const heat = heatMapHtml(store)
+  if (!list.length) {
+    return `
+      <div class="row"><h1>${t('statsTitle')}</h1></div>
+      <div class="card"><b>${t('heatTitle')}</b>${heat}<p class="muted" style="margin-top:8px">${t('heatEmpty')}</p></div>
+      <p class="muted">${t('progressEmpty')}</p>
+    `
+  }
+  const id = state.progressId && list.some(ex => ex.id === state.progressId) ? state.progressId : list[0].id
+  state.progressId = id
+  const series = progressSeries(id)
+  const maxKg = Math.max(1, ...series.map(p => p.kg))
+  const bars = series.map(p => {
+    const h = Math.max(8, Math.round((p.kg / maxKg) * 100))
+    const label = `${new Date(p.started).getMonth() + 1}/${new Date(p.started).getDate()}`
+    return `<div class="prog-col" title="${p.kg}×${p.reps}"><div class="prog-bar" style="height:${h}%"></div><span class="muted">${label}</span><span class="muted">${p.kg}</span></div>`
+  }).join('')
+  const peak = series.reduce((best, p) => (
+    !best || p.kg > best.kg || (p.kg === best.kg && p.reps > best.reps) ? p : best
+  ), null)
+  return `
+    <div class="row"><h1>${t('statsTitle')}</h1></div>
+    <div class="card"><b>${t('heatTitle')}</b>${heat}</div>
+    <p class="muted">${t('progressPick')}</p>
+    <div class="chips" style="margin-top:8px">
+      ${list.slice(0, 24).map(ex => `<button class="chip ${ex.id === id ? 'on' : ''}" data-prog="${ex.id}">${escapeHtml(exName(ex))}</button>`).join('')}
+    </div>
+    <div class="card">
+      <b>${escapeHtml(exName(list.find(ex => ex.id === id)))}</b>
+      <div class="muted" style="margin-top:4px">${t('progressSession', series.length)}${peak ? ` · ${t('progressBest', peak.kg, peak.reps)}` : ''}</div>
+      <div class="prog-chart">${bars || `<p class="muted">${t('progressEmpty')}</p>`}</div>
     </div>
   `
 }
@@ -905,7 +1074,7 @@ function homeView(store) {
 function settingsView() {
   const soundOn = restSoundOn()
   return `
-    <div class="row"><h1>${t('settings')}</h1><button class="ghost" id="back">${t('back')}</button></div>
+    <div class="row"><h1>${t('settings')}</h1></div>
     <p class="muted">v${APP_VERSION}. ${t('versionLocal')}</p>
     <div class="card">
       <b>${t('lang')}</b>
@@ -1085,8 +1254,12 @@ function bind() {
     if (el) el.onclick = fn
   }
   on('start', startSession)
+  on('startToday', () => {
+    const tpl = todayTemplate(loadStore())
+    if (tpl) startFromTemplate(tpl)
+    else startSession()
+  })
   on('check', checkUpdate)
-  on('settingsBtn', () => { state.screen = 'settings'; state.importArmed = false; render() })
   on('pick', () => { state.screen = 'pick'; render() })
   on('back', () => {
     if (state.screen === 'pick' && state.pickFor === 'template') {
@@ -1097,12 +1270,17 @@ function bind() {
     if (state.screen === 'template') {
       state.draft = null
       state.pickFor = 'session'
-      state.screen = state.session ? 'workout' : 'home'
+      state.screen = state.session ? 'workout' : 'plan'
       render()
       return
     }
-    if (state.screen === 'progress' || state.screen === 'settings') {
-      state.screen = 'home'
+    if (state.screen === 'detail') {
+      state.screen = 'history'
+      render()
+      return
+    }
+    if (state.screen === 'progress') {
+      state.screen = 'stats'
       render()
       return
     }
@@ -1116,7 +1294,7 @@ function bind() {
   on('saveDraft', saveDraft)
   on('delWorkout', () => deleteWorkout(state.openId))
   on('exportBtn', exportBackup)
-  on('progressBtn', () => { state.screen = 'progress'; render() })
+  on('progressBtn', () => { state.screen = 'stats'; render() })
   on('importBtn', () => {
     if (!state.importArmed) {
       state.importArmed = true
@@ -1133,6 +1311,19 @@ function bind() {
       importFile.value = ''
     }
   }
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.onclick = () => {
+      state.screen = btn.dataset.tab
+      state.importArmed = false
+      render()
+    }
+  })
+  document.querySelectorAll('[data-day]').forEach(sel => {
+    sel.onchange = () => {
+      setScheduleDay(sel.dataset.day, sel.value)
+      render()
+    }
+  })
   document.querySelectorAll('[data-lang]').forEach(btn => {
     btn.onclick = () => setLang(btn.dataset.lang)
   })
@@ -1157,6 +1348,20 @@ function bind() {
     btn.onclick = () => {
       const tpl = loadStore().templates.find(item => item.id === btn.dataset.tpl)
       if (tpl) startFromTemplate(tpl)
+    }
+  })
+  document.querySelectorAll('[data-edit-tpl]').forEach(btn => {
+    btn.onclick = () => {
+      const tpl = loadStore().templates.find(item => item.id === btn.dataset.editTpl)
+      if (!tpl) return
+      state.draft = {
+        name: tpl.name,
+        exercises: tpl.exercises.map(ex => ({ id: ex.id, name: ex.name, zh: ex.zh || '' })),
+        replaceId: tpl.id,
+      }
+      state.pickFor = 'template'
+      state.screen = 'template'
+      render()
     }
   })
   document.querySelectorAll('[data-del-tpl]').forEach(btn => {

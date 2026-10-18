@@ -212,3 +212,24 @@ html[data-theme="forge"] .list-btn,
 html[data-theme="forge"] .card {
   border-color: rgba(255, 120, 40, .45);
 }
+
+html[data-theme] .tabbar {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border-top-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-theme] .tab { color: var(--muted); }
+html[data-theme] .tab.on {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+html[data-theme] .select {
+  background: color-mix(in srgb, var(--bg) 70%, var(--card));
+  color: var(--ink);
+  border-color: var(--line);
+  border-radius: var(--radius-btn);
+}
+
+html[data-theme] .heat.l3 { background: var(--accent); }
