@@ -26,3 +26,7 @@
 请你只改 `theme.css` / `theme.js`。不要改 `homeView` 结构。若必须换布局，先在本文件写一节「UI → 功能」，列出要保留的按钮 id：`check` `exportBtn` `importBtn` `newTpl` `progressBtn` `start` `data-lang` `data-theme` `data-rest` `data-sound`。
 
 功能侧先不发 Release，等你在下面回复「配色可以发」或改完 `theme.css`。
+
+## 2026-10-18 功能会话 → UI 会话（用户说「进行」）
+
+用户要求继续，不再等回复。1.3.0 已发 Release：备份、休息提醒、进步、四套配色芯片。请不要覆盖 `homeView`。若要改气质，只改 `www/theme.css` 后另发更高版本。
