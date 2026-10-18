@@ -759,36 +759,146 @@ function render() {
   }
 }
 
+const THEME_LAYOUT_IMGS = {
+  ember: ['theme-assets/ember-bench.jpg', 'theme-assets/ember-dumbbell.jpg', 'theme-assets/ember-cable.jpg', 'theme-assets/ember-gym.jpg'],
+  mist: ['theme-assets/mist-train.jpg', 'theme-assets/mist-barbell.jpg', 'theme-assets/mist-dumbbell.jpg', 'theme-assets/mist-row.jpg'],
+  pulse: ['theme-assets/pulse-bar.jpg', 'theme-assets/pulse-rack.jpg', 'theme-assets/pulse-horizon.jpg'],
+  forge: ['theme-assets/forge-bar.jpg', 'theme-assets/forge-dumbbell.jpg', 'theme-assets/forge-kettle.jpg', 'theme-assets/forge-rack.jpg'],
+}
+
+function layoutTheme() {
+  const id = typeof currentThemeId === 'function' ? currentThemeId() : 'ember'
+  return THEME_LAYOUT_IMGS[id] ? id : 'ember'
+}
+
+function themeImg(index) {
+  const list = THEME_LAYOUT_IMGS[layoutTheme()]
+  return list[index % list.length]
+}
+
 function homeView(store) {
   const sep = state.lang === 'zh' ? '、' : ', '
   const week = weekStats(store)
+  const theme = layoutTheme()
   const items = store.workouts.map(w => {
     const names = w.exercises.map(e => exName(e)).slice(0, 3).join(sep)
     const vol = workoutVolume(w)
     return `<button class="list-btn" data-open="${w.id}"><b>${fmt(w.started)}</b><div class="muted">${t('histVol', vol, w.exercises.length, names)}</div></button>`
   }).join('')
-  const tplCards = store.templates.map(tpl => `
-    <div class="tpl-card">
-      <button class="list-btn" data-tpl="${tpl.id}" style="margin:0"><b>${escapeHtml(tpl.name)}</b><div class="muted">${tpl.exercises.map(ex => exName(ex)).slice(0, 3).join(sep)}</div></button>
+  const tplRows = store.templates.map((tpl, i) => `
+    <div class="shot-row">
+      <button class="list-btn shot-main" data-tpl="${tpl.id}">
+        <img src="${themeImg(i + 1)}" alt="" />
+        <span><b>${escapeHtml(tpl.name)}</b><span class="muted">${tpl.exercises.map(ex => exName(ex)).slice(0, 3).join(sep) || t('templateEmpty')}</span></span>
+      </button>
       <button class="danger tiny" data-del-tpl="${tpl.id}">${state.confirmId === `tpl:${tpl.id}` ? t('deleteConfirm') : t('removeSet')}</button>
     </div>
   `).join('')
-  return `
-    <div class="row"><h1>${t('appTitle')}</h1><button class="ghost tiny" id="settingsBtn">${t('settings')}</button></div>
-    <div class="hero">
-      <div class="kicker">${t('weekVolume')}</div>
-      <div class="hero-num">${fmtVol(week.volume)}</div>
-      <div class="muted">${t('volumeUnit')} · ${t('weekSessions', week.sessions)}</div>
-    </div>
-    <button class="primary" id="start">${t('start')}</button>
-    <div class="section-head">
-      <h2>${t('templates')}</h2>
-      <button class="ghost tiny" id="newTpl">${t('newTemplate')}</button>
-    </div>
-    ${tplCards || `<p class="muted">${t('noTemplates')}</p>`}
-    <button class="ghost" id="progressBtn" style="width:100%;margin-top:10px">${t('progress')}</button>
-    <div class="section-head" style="margin-top:18px"><h2>${t('history')}</h2></div>
+  const history = `
+    <div class="section-head"><h2>${t('history')}</h2></div>
     ${items || `<p class="muted">${t('noHistory')}</p>`}
+  `
+  const head = `<div class="row"><h1>${t('appTitle')}</h1><button class="ghost tiny" id="settingsBtn">${t('settings')}</button></div>`
+
+  if (theme === 'mist') {
+    return `
+      <div class="layout layout-mist">
+        ${head}
+        <p class="kicker">${t('weekVolume')}</p>
+        <h2 class="layout-title">${t('weekSessions', week.sessions)}</h2>
+        <div class="card shot-who">
+          <img src="${themeImg(0)}" alt="" />
+          <div><b>${fmtVol(week.volume)} ${t('volumeUnit')}</b><div class="muted">${t('weekVolume')}</div></div>
+        </div>
+        <div class="card">
+          ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
+          <button class="ghost tiny" id="newTpl" style="width:100%;margin-top:8px">${t('newTemplate')}</button>
+        </div>
+        <button class="primary" id="start">${t('start')}</button>
+        <button class="ghost" id="progressBtn" style="width:100%;margin-top:8px">${t('progress')}</button>
+        ${history}
+      </div>
+    `
+  }
+
+  if (theme === 'pulse') {
+    const goal = 4
+    const ratio = Math.min(1, week.sessions / goal)
+    const dash = Math.round(ratio * 176)
+    return `
+      <div class="layout layout-pulse">
+        ${head}
+        <p class="kicker">${t('weekVolume')}</p>
+        <h2 class="layout-title">${fmtVol(week.volume)}<span> ${t('volumeUnit')}</span></h2>
+        <div class="pulse-grid">
+          <img class="pulse-shot" src="${themeImg(0)}" alt="" />
+          <div class="card"><span class="muted">${t('weekSessions', week.sessions)}</span><b class="pulse-kg">${store.templates.length}</b><span class="muted">${t('templates')}</span></div>
+        </div>
+        <button class="card pulse-ring" id="progressBtn">
+          <svg width="64" height="64" viewBox="0 0 72 72" aria-hidden="true">
+            <circle cx="36" cy="36" r="28" fill="none" stroke="currentColor" stroke-opacity=".2" stroke-width="8"/>
+            <circle cx="36" cy="36" r="28" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash} 176" transform="rotate(-90 36 36)"/>
+          </svg>
+          <span><b>${t('progress')}</b><span class="muted">${t('weekSessions', week.sessions)}</span></span>
+        </button>
+        ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
+        <button class="ghost tiny" id="newTpl" style="margin-top:8px">${t('newTemplate')}</button>
+        <button class="primary" id="start" style="margin-top:12px">${t('start')}</button>
+        ${history}
+      </div>
+    `
+  }
+
+  if (theme === 'forge') {
+    return `
+      <div class="layout layout-forge">
+        ${head}
+        <p class="kicker">${t('weekVolume')}</p>
+        <div class="forge-plate">
+          <img src="${themeImg(0)}" alt="" />
+          <div class="forge-pad">
+            <div class="hero-num">${fmtVol(week.volume)}</div>
+            <div class="muted">${t('volumeUnit')} · ${t('weekSessions', week.sessions)}</div>
+            <div class="forge-foot">
+              <button class="ghost tiny" id="progressBtn">${t('progress')}</button>
+              <button class="primary orb" id="start">${t('start')}</button>
+            </div>
+          </div>
+        </div>
+        <div class="forge-minis">
+          <button class="mini" id="newTpl"><img src="${themeImg(1)}" alt="" /><span>${t('newTemplate')}</span></button>
+          <div class="mini"><img src="${themeImg(2)}" alt="" /><span>${store.templates.length} ${t('templates')}</span></div>
+        </div>
+        ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
+        ${history}
+      </div>
+    `
+  }
+
+  return `
+    <div class="layout layout-ember">
+      ${head}
+      <div class="hero-photo">
+        <img src="${themeImg(0)}" alt="" />
+        <div class="cap">
+          <div class="kicker">${t('weekVolume')}</div>
+          <div class="hero-num">${fmtVol(week.volume)}</div>
+          <div class="muted">${t('volumeUnit')} · ${t('weekSessions', week.sessions)}</div>
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="card metric"><span class="muted">${t('templates')}</span><b>${store.templates.length}</b></div>
+        <div class="card metric"><span class="muted">${t('history')}</span><b>${store.workouts.length}</b></div>
+      </div>
+      <button class="primary" id="start">${t('start')}</button>
+      <div class="section-head">
+        <h2>${t('templates')}</h2>
+        <button class="ghost tiny" id="newTpl">${t('newTemplate')}</button>
+      </div>
+      ${tplRows || `<p class="muted">${t('noTemplates')}</p>`}
+      <button class="ghost" id="progressBtn" style="width:100%;margin-top:10px">${t('progress')}</button>
+      ${history}
+    </div>
   `
 }
 

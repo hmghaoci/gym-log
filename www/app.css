@@ -194,3 +194,87 @@ button.tiny { padding: 8px 10px; }
   min-height: 8px;
 }
 .prog-col span { font-size: 11px; text-align: center; }
+
+.layout-title { font-size: 28px; margin: 6px 0 0; letter-spacing: -.03em; }
+.layout-title span { font-size: 16px; font-weight: 500; }
+.hero-photo {
+  position: relative;
+  height: 210px;
+  margin: 8px 0 12px;
+  border-radius: 22px;
+  overflow: hidden;
+}
+.hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-photo .cap {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 28px 14px 12px;
+  background: linear-gradient(transparent, rgba(0,0,0,.72));
+  color: #fff;
+}
+.hero-photo .muted, .hero-photo .kicker { color: rgba(255,255,255,.82); }
+.metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.metric { margin: 0; }
+.metric b { display: block; font-size: 22px; }
+.shot-row { display: flex; gap: 8px; align-items: stretch; margin-top: 8px; }
+.shot-main {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  flex: 1;
+}
+.shot-main img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 12px;
+  flex: 0 0 auto;
+}
+.shot-main span { display: block; }
+.shot-who { display: flex; gap: 10px; align-items: center; }
+.shot-who img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+.pulse-grid { display: grid; grid-template-columns: 1.3fr .7fr; gap: 10px; margin-top: 14px; }
+.pulse-shot { width: 100%; height: 120px; object-fit: cover; border-radius: 18px; }
+.pulse-kg { display: block; font-size: 28px; margin: 4px 0; }
+.pulse-ring {
+  width: 100%;
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  color: inherit;
+}
+.forge-plate {
+  margin-top: 8px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+.forge-plate > img { width: 100%; height: 150px; object-fit: cover; display: block; }
+.forge-pad { padding: 14px; }
+.forge-foot { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 8px; }
+button.primary.orb {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  padding: 8px;
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1.15;
+  white-space: normal;
+}
+.forge-minis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.mini {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: inherit;
+  border-radius: 18px;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+}
+.mini img { width: 100%; height: 88px; object-fit: cover; display: block; }
+.mini span { display: block; padding: 8px 10px 10px; font-size: 13px; }

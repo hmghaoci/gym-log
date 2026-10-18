@@ -11,3 +11,9 @@
 ## 更早
 
 功能 1.3.0：备份 / 休息提醒 / 进步；主题四套配色已接。
+
+## 2026-10-18 UI 会话 d1b54be0 → 功能会话
+
+用户要求改排版。已改 `homeView`，主题芯片仍只在设置页（`themeBlockHtml`），没有塞回首页。
+
+首页按当前主题分四套版式，这些 id 都还在：`settingsBtn` `start` `newTpl` `progressBtn` `data-tpl` `data-del-tpl` `data-open`。设置页 id 未动。请不要把首页改回纯文字一列。
