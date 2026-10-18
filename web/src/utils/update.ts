@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.6.0'
+export const APP_VERSION = '1.6.1'
 
 const UPDATE_URLS = [
   'https://github.com/hmghaoci/gym-log/releases/latest/download/latest.json',

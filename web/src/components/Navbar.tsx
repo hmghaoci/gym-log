@@ -143,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>杠铃配重</span>
             </button>
 
-            {activeWorkout ? (
+            {activeWorkout && (
               <button
                 onClick={onOpenActiveWorkout}
                 className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-950 shadow-lg transition-all animate-pulse whitespace-nowrap shrink-0"
@@ -155,19 +155,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="w-2 h-2 rounded-full bg-slate-950 animate-ping" />
                 <span>进行中 {formatDurationTimer(activeElapsedSeconds)}</span>
               </button>
-            ) : (
-              <button
-                onClick={() => onSelectTab('settings')}
-                className={`p-2 rounded-xl transition-colors ${
-                  theme.isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                } ${currentTab === 'settings' ? 'bg-white/10 text-white' : ''}`}
-                title="设置与数据备份"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
             )}
+            <button
+              onClick={() => onSelectTab('settings')}
+              className={`p-2 rounded-xl transition-colors ${
+                theme.isDark
+                  ? 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              } ${currentTab === 'settings' ? 'bg-white/10 text-white' : ''}`}
+              title="设置与数据备份"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>
@@ -184,9 +183,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {[
             { id: 'workout', label: '训练', icon: Dumbbell },
             { id: 'plan', label: '计划', icon: Calendar },
-            { id: 'library', label: '动作库', icon: BookOpen },
             { id: 'history', label: '历史', icon: History },
             { id: 'stats', label: '数据', icon: BarChart3 },
+            { id: 'settings', label: '设置', icon: Settings },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;

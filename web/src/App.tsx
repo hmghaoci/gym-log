@@ -319,7 +319,7 @@ export default function App() {
   // Export & Import Handlers
   const handleExportData = () => {
     const backup = {
-      version: '1.6.0',
+      version: '1.6.1',
       exportDate: new Date().toISOString(),
       sessions,
       templates,
