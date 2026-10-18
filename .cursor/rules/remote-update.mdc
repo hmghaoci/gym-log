@@ -1,0 +1,34 @@
+---
+description: 远程更新曾失败的根因与发版必做项（勿只改版本号）
+alwaysApply: true
+---
+
+# 远程更新踩坑（必须记住）
+
+本 App 用 Capgo + GitHub 做热更新。用户曾遇到：**检查更新显示「已是最新」或「发现新版本但更新包还没上传」，实际无法更新到新版。**
+
+## 根因
+
+手机对比的是 `release/latest.json`（及 Release 上的同名文件）。只改 `APP_VERSION` / 清单里的 `version` **不够**。
+
+必须同时满足：
+
+1. `version` 高于手机里的版本
+2. `url` 指向可下载的 `gym-log-web.zip`（不能为空）
+3. `checksum` 为该 zip 的 SHA-256（不能为空）
+4. zip / latest.json（及可选 APK）已上传到 **GitHub Release**（例如 `v1.2.0`），与 `url` 一致
+
+## 发版时不要再犯
+
+- 打包 `www/` → `release/gym-log-web.zip`
+- 写入完整的 `release/latest.json`
+- `gh release create` 上传产物，再推 `main`
+- 勿只推代码或只 bump 版本就告诉用户「可以检查更新了」
+
+## 提示对照
+
+| 提示 | 含义 |
+| --- | --- |
+| 已是最新版本 | 远程 version ≤ 手机 version，或清单未更新 |
+| 更新包还没上传 | version 更高但 url/checksum 为空 |
+| 检查更新失败 | 拉不到清单或网络问题 |
