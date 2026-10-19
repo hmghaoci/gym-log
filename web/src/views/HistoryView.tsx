@@ -1,321 +1,471 @@
-import React, { useState } from 'react';
-import { History, Calendar, Clock, Flame, Dumbbell, Trash2, ChevronDown, ChevronUp, Search, Plus, Award } from 'lucide-react';
-import { WorkoutSession } from '../types/gym';
-import { formatDurationHuman, formatVolume } from '../utils/calculations';
-import { getBodyPartName } from '../utils/translations';
+import React, { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { WorkoutSession, WorkoutExercise, WorkoutSet } from '../types/gym';
+import { formatVolume } from '../utils/calculations';
+import { EXERCISE_MAP } from '../utils/storage';
+import { getExerciseMediaUrl, getExerciseMediaFallbackUrl } from '../utils/translations';
 import { ThemeConfig } from '../types/theme';
 
 interface HistoryViewProps {
   sessions: WorkoutSession[];
   onDeleteSession: (sessionId: string) => void;
+  onUpdateSession: (session: WorkoutSession) => void;
   onStartEmptyWorkout: () => void;
   onSeedSampleData: () => void;
   theme: ThemeConfig;
 }
 
+function dayKey(date: Date | string) {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function classifySession(session: WorkoutSession): { kind: string; tag: string } {
+  const title = (session.title || '').toLowerCase();
+  const zh = session.title || '';
+  if (/推|push|胸|肩|三头/.test(zh) || /push|chest|shoulder/.test(title)) {
+    return { kind: 'push', tag: '推' };
+  }
+  if (/拉|pull|背|二头/.test(zh) || /pull|back|bicep/.test(title)) {
+    return { kind: 'pull', tag: '拉' };
+  }
+  if (/腿|leg|蹲/.test(zh) || /leg|squat/.test(title)) {
+    return { kind: 'legs', tag: '腿' };
+  }
+  const parts = session.exercises.map((e) => (e.bodyPart || '').toLowerCase());
+  if (parts.some((p) => p === 'chest' || p === 'shoulders')) return { kind: 'push', tag: '推' };
+  if (parts.some((p) => p === 'back')) return { kind: 'pull', tag: '拉' };
+  if (parts.some((p) => p.includes('leg'))) return { kind: 'legs', tag: '腿' };
+  return { kind: 'other', tag: '练' };
+}
+
+function recomputeSession(session: WorkoutSession): WorkoutSession {
+  let totalVolume = 0;
+  let completedSets = 0;
+  session.exercises.forEach((ex) => {
+    ex.sets.forEach((s) => {
+      if (s.completed) {
+        totalVolume += (Number(s.kg) || 0) * (Number(s.reps) || 0);
+        completedSets += 1;
+      }
+    });
+  });
+  return { ...session, totalVolume, completedSets };
+}
+
+function newSet(setNumber: number, kg = 20, reps = 8): WorkoutSet {
+  return {
+    id: `set-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    setNumber,
+    type: 'normal',
+    kg,
+    reps,
+    completed: true,
+  };
+}
+
 export const HistoryView: React.FC<HistoryViewProps> = ({
   sessions,
   onDeleteSession,
+  onUpdateSession,
   onStartEmptyWorkout,
   onSeedSampleData,
   theme,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedSessionIds, setExpandedSessionIds] = useState<Set<string>>(new Set());
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const today = new Date();
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [selectedKey, setSelectedKey] = useState(dayKey(today));
 
-  const toggleExpand = (id: string) => {
-    setExpandedSessionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  const sessionsByDay = useMemo(() => {
+    const map = new Map<string, WorkoutSession[]>();
+    sessions.forEach((s) => {
+      const key = dayKey(s.date);
+      const list = map.get(key) || [];
+      list.push(s);
+      map.set(key, list);
     });
+    return map;
+  }, [sessions]);
+
+  const selectedSessions = sessionsByDay.get(selectedKey) || [];
+  const primary = selectedSessions[0];
+
+  const calendarCells = useMemo(() => {
+    const first = new Date(calYear, calMonth, 1);
+    const startOffset = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const prevDays = new Date(calYear, calMonth, 0).getDate();
+    const cells: { key: string; day: number; out: boolean; tag?: string; kind?: string }[] = [];
+
+    for (let i = 0; i < 42; i++) {
+      let y = calYear;
+      let m = calMonth;
+      let d: number;
+      let out = false;
+      if (i < startOffset) {
+        d = prevDays - startOffset + 1 + i;
+        m = calMonth - 1;
+        if (m < 0) {
+          m = 11;
+          y -= 1;
+        }
+        out = true;
+      } else if (i >= startOffset + daysInMonth) {
+        d = i - (startOffset + daysInMonth) + 1;
+        m = calMonth + 1;
+        if (m > 11) {
+          m = 0;
+          y += 1;
+        }
+        out = true;
+      } else {
+        d = i - startOffset + 1;
+      }
+      const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const daySessions = sessionsByDay.get(key);
+      const tagInfo = daySessions?.[0] ? classifySession(daySessions[0]) : undefined;
+      cells.push({
+        key,
+        day: d,
+        out,
+        tag: tagInfo?.tag,
+        kind: tagInfo?.kind,
+      });
+    }
+    return cells;
+  }, [calYear, calMonth, sessionsByDay]);
+
+  const todayKey = dayKey(today);
+
+  const tagClass = (kind?: string) => {
+    if (kind === 'push') return 'bg-sky-100 text-sky-700';
+    if (kind === 'pull') return 'bg-violet-100 text-violet-700';
+    if (kind === 'legs') return 'bg-amber-100 text-amber-700';
+    return 'bg-emerald-100 text-emerald-700';
   };
 
-  const filteredSessions = sessions.filter((s) => {
-    if (!searchTerm.trim()) return true;
-    const q = searchTerm.toLowerCase();
-    const matchTitle = s.title.toLowerCase().includes(q);
-    const matchExercises = s.exercises.some(
-      (e) =>
-        e.exerciseName.toLowerCase().includes(q) ||
-        (e.exerciseZh && e.exerciseZh.toLowerCase().includes(q))
-    );
-    return matchTitle || matchExercises;
-  });
+  const updatePrimary = (next: WorkoutSession) => {
+    onUpdateSession(recomputeSession(next));
+  };
+
+  const patchExercise = (exIdx: number, patch: Partial<WorkoutExercise>) => {
+    if (!primary) return;
+    const exercises = primary.exercises.map((ex, i) => (i === exIdx ? { ...ex, ...patch } : ex));
+    updatePrimary({ ...primary, exercises });
+  };
+
+  const patchSet = (exIdx: number, setIdx: number, patch: Partial<WorkoutSet>) => {
+    if (!primary) return;
+    const exercises = primary.exercises.map((ex, i) => {
+      if (i !== exIdx) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map((s, j) => (j === setIdx ? { ...s, ...patch } : s)),
+      };
+    });
+    updatePrimary({ ...primary, exercises });
+  };
+
+  const mediaFor = (ex: WorkoutExercise) => {
+    const raw = EXERCISE_MAP.get(ex.exerciseId);
+    return getExerciseMediaUrl(raw?.g || raw?.img);
+  };
+  const mediaFallbackFor = (ex: WorkoutExercise) => {
+    const raw = EXERCISE_MAP.get(ex.exerciseId);
+    return getExerciseMediaFallbackUrl(raw?.g || raw?.img);
+  };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-28 md:pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl font-black tracking-tight ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
-            训练历史记录
-          </h1>
-          <p className={`text-xs mt-1 ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            累计完成 {sessions.length} 次训练，记录只安全留存在本机浏览器
-          </p>
-        </div>
-
-        {sessions.length === 0 && (
-          <button
-            onClick={onSeedSampleData}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-colors self-start sm:self-auto ${
-              theme.isDark
-                ? 'bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border-white/10'
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-sm'
-            }`}
-          >
-            生成 8 周模拟训练数据
-          </button>
-        )}
+    <div className="space-y-4 max-w-xl mx-auto pb-28 md:pb-16">
+      <div>
+        <h1 className={`text-2xl font-black tracking-tight ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+          历史
+        </h1>
+        <p className={`text-xs mt-1 ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          点某一天查看当天动作，可改重量、次数和组数
+        </p>
       </div>
 
-      {/* Search Input */}
-      {sessions.length > 0 && (
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="搜索历史训练或动作名称（如：推日、卧推、深蹲）..."
-            className={`w-full pl-10 pr-4 py-3 rounded-2xl text-xs focus:outline-none border transition-colors ${
-              theme.isDark
-                ? 'bg-[#121218]/90 border-white/10 text-white placeholder-zinc-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 shadow-sm'
-            }`}
-          />
+      <div className="flex items-center justify-between">
+        <div className={`text-base font-black ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+          {calYear}年{calMonth + 1}月
         </div>
-      )}
-
-      {/* History List */}
-      {filteredSessions.length === 0 ? (
-        <div
-          className={`p-16 text-center rounded-3xl border ${
-            theme.isDark ? 'bg-[#121218]/80 border-white/10' : 'bg-white border-slate-200 shadow-sm'
-          }`}
-        >
-          <History className="w-12 h-12 mx-auto mb-3 text-zinc-500 opacity-60" />
-          <h3 className={`text-base font-bold ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
-            暂无历史训练记录
-          </h3>
-          <p className={`text-xs mt-1 mb-5 ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            完成一次训练后，数据将完整记录在此处，供随时复盘分析
-          </p>
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={onStartEmptyWorkout}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs text-slate-950 shadow-md transition-all hover:scale-105"
-              style={{ backgroundColor: theme.accentColor }}
-            >
-              开启首次训练
-            </button>
-            <button
-              onClick={onSeedSampleData}
-              className={`px-4 py-2.5 rounded-xl text-xs font-medium border transition-colors ${
-                theme.isDark
-                  ? 'bg-white/[0.04] text-zinc-300 border-white/10'
-                  : 'bg-slate-100 text-slate-700 border-slate-200'
-              }`}
-            >
-              加载示例演示数据
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredSessions.map((session) => {
-            const isExpanded = expandedSessionIds.has(session.id);
-            const dateObj = new Date(session.date);
-            const dateStr = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
-            const timeStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
-
-            return (
-              <div
-                key={session.id}
-                className={`rounded-3xl border transition-all overflow-hidden ${
-                  theme.isDark
-                    ? 'bg-[#121218]/90 border-white/10 hover:border-white/20'
-                    : 'bg-white border-slate-200/90 shadow-xl shadow-slate-200/50 hover:border-slate-300'
-                }`}
-              >
-                {/* Session Header / Card */}
-                <div
-                  onClick={() => toggleExpand(session.id)}
-                  className="p-5 cursor-pointer flex items-center justify-between gap-4"
-                >
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3
-                        className={`font-black text-base truncate ${
-                          theme.isDark ? 'text-white' : 'text-slate-900'
-                        }`}
-                      >
-                        {session.title}
-                      </h3>
-                      {session.newPrs && session.newPrs.length > 0 && (
-                        <span className="flex items-center gap-1 text-[11px] font-mono text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md">
-                          <Award className="w-3 h-3 text-amber-400" />
-                          <span>{session.newPrs.length} PR</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs text-zinc-400 flex-wrap">
-                      <span className="flex items-center gap-1 font-mono">
-                        <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-                        {dateStr} {timeStr}
-                      </span>
-                      <span>·</span>
-                      <span className="flex items-center gap-1 font-mono">
-                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                        {formatDurationHuman(session.duration)}
-                      </span>
-                      <span>·</span>
-                      <span
-                        className="flex items-center gap-1 font-mono font-bold tabular-nums"
-                        style={{ color: theme.accentColor }}
-                      >
-                        <Flame className="w-3.5 h-3.5" />
-                        {formatVolume(session.totalVolume)} kg
-                      </span>
-                      <span>·</span>
-                      <span className="font-mono">
-                        {session.completedSets} 组
-                      </span>
-                    </div>
-
-                    {/* Summary list of exercises */}
-                    <div className={`text-xs truncate pt-1 ${theme.isDark ? 'text-zinc-500' : 'text-slate-500'}`}>
-                      {session.exercises.map((e) => e.exerciseZh || e.exerciseName).join(' · ')}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteConfirmId(session.id);
-                      }}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                      title="删除记录"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="text-zinc-400">
-                      {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <div
-                    className={`p-5 pt-0 border-t space-y-4 ${
-                      theme.isDark
-                        ? 'bg-white/[0.015] border-white/[0.07]'
-                        : 'bg-slate-50/70 border-slate-100'
-                    }`}
-                  >
-                    <div className="space-y-3 pt-3">
-                      {session.exercises.map((ex, exIdx) => {
-                        const completedSets = ex.sets.filter((s) => s.completed);
-
-                        return (
-                          <div
-                            key={exIdx}
-                            className={`p-4 rounded-2xl border ${
-                              theme.isDark
-                                ? 'bg-white/[0.02] border-white/5'
-                                : 'bg-white border-slate-200/80 shadow-sm'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span
-                                className={`font-bold text-xs ${
-                                  theme.isDark ? 'text-white' : 'text-slate-900'
-                                }`}
-                              >
-                                {ex.exerciseZh || ex.exerciseName}
-                              </span>
-                              <span
-                                className={`text-[11px] ${
-                                  theme.isDark ? 'text-zinc-500' : 'text-slate-400'
-                                }`}
-                              >
-                                {getBodyPartName(ex.bodyPart)} · 完成 {completedSets.length} 组
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                              {ex.sets.map((set, setIdx) => (
-                                <div
-                                  key={setIdx}
-                                  className={`p-2.5 rounded-xl text-xs font-mono flex items-center justify-between border ${
-                                    set.completed
-                                      ? theme.isDark
-                                        ? 'bg-white/[0.04] border-white/10 text-white'
-                                        : 'bg-slate-100 border-slate-200 text-slate-800'
-                                      : 'opacity-40'
-                                  }`}
-                                >
-                                  <span className="text-[10px] text-zinc-500">
-                                    第 {set.setNumber} 组
-                                  </span>
-                                  <span className="font-bold tabular-nums">
-                                    {set.kg}kg × {set.reps}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div
-            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border ${
-              theme.isDark ? 'bg-[#121218] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => {
+              if (calMonth === 0) {
+                setCalMonth(11);
+                setCalYear((y) => y - 1);
+              } else setCalMonth((m) => m - 1);
+            }}
+            className={`w-8 h-8 rounded-xl border flex items-center justify-center ${
+              theme.isDark ? 'border-white/10 text-zinc-300' : 'border-slate-200 text-slate-700 bg-white'
             }`}
           >
-            <h3 className="text-base font-bold mb-2">确定删除这次训练吗？</h3>
-            <p className={`text-xs mb-5 ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-              删除后历史容量与进度统计将重新计算，此操作不可撤销。
-            </p>
-            <div className="flex gap-2.5">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-medium ${
-                  theme.isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              if (calMonth === 11) {
+                setCalMonth(0);
+                setCalYear((y) => y + 1);
+              } else setCalMonth((m) => m + 1);
+            }}
+            className={`w-8 h-8 rounded-xl border flex items-center justify-center ${
+              theme.isDark ? 'border-white/10 text-zinc-300' : 'border-slate-200 text-slate-700 bg-white'
+            }`}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-2 text-[11px] font-bold text-slate-500">
+        <span className={`px-2 py-0.5 rounded-full ${tagClass('push')}`}>推</span>
+        <span className={`px-2 py-0.5 rounded-full ${tagClass('pull')}`}>拉</span>
+        <span className={`px-2 py-0.5 rounded-full ${tagClass('legs')}`}>腿</span>
+      </div>
+
+      <div className={`grid grid-cols-7 gap-1 text-center text-[11px] font-bold ${theme.isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+        {['一', '二', '三', '四', '五', '六', '日'].map((d) => (
+          <div key={d}>{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {calendarCells.map((cell) => {
+          const selected = cell.key === selectedKey;
+          const isToday = cell.key === todayKey;
+          return (
+            <button
+              key={cell.key}
+              type="button"
+              onClick={() => setSelectedKey(cell.key)}
+              className={`min-h-[58px] rounded-2xl px-1 py-1.5 flex flex-col items-center gap-1 transition-all ${
+                selected
+                  ? theme.isDark
+                    ? 'bg-white/10 ring-1'
+                    : 'bg-slate-50 ring-1'
+                  : ''
+              } ${cell.out ? 'opacity-40' : ''}`}
+              style={selected ? { boxShadow: `inset 0 0 0 1.5px ${theme.accentColor}` } : undefined}
+            >
+              <span
+                className={`text-[13px] font-extrabold leading-none ${
+                  isToday
+                    ? 'w-5 h-5 rounded-full grid place-items-center text-slate-950'
+                    : theme.isDark
+                    ? 'text-white'
+                    : 'text-slate-900'
                 }`}
+                style={isToday ? { backgroundColor: theme.accentColor } : undefined}
               >
-                取消
-              </button>
+                {cell.day}
+              </span>
+              {cell.tag ? (
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${tagClass(cell.kind)}`}>
+                  {cell.tag}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        className={`rounded-3xl border p-4 sm:p-5 space-y-3 ${
+          theme.isDark ? 'bg-[#121218]/90 border-white/10' : 'bg-white border-slate-200 shadow-sm'
+        }`}
+      >
+        {!primary ? (
+          <div className="space-y-3">
+            <h3 className={`font-black ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>这一天没练</h3>
+            <p className={`text-xs ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+              {selectedKey.slice(5).replace('-', '月')}日 · 休息或未记录
+            </p>
+            <div className="flex gap-2">
               <button
-                onClick={() => {
-                  onDeleteSession(deleteConfirmId);
-                  setDeleteConfirmId(null);
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md"
+                onClick={onStartEmptyWorkout}
+                className="flex-1 py-3 rounded-2xl text-xs font-bold text-slate-950"
+                style={{ backgroundColor: theme.accentColor }}
               >
-                确认删除
+                现在开练
               </button>
+              {sessions.length === 0 ? (
+                <button
+                  onClick={onSeedSampleData}
+                  className={`flex-1 py-3 rounded-2xl text-xs font-semibold border ${
+                    theme.isDark ? 'border-white/10 text-zinc-300' : 'border-slate-200 text-slate-700'
+                  }`}
+                >
+                  加载示例
+                </button>
+              ) : null}
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className={`font-black text-base ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {primary.title}
+                </h3>
+                <p className={`text-xs mt-1 ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                  {selectedKey.slice(5).replace('-', '月')}日 · {primary.completedSets} 组 ·{' '}
+                  {formatVolume(primary.totalVolume)} kg
+                </p>
+              </div>
+              <button
+                onClick={() => onDeleteSession(primary.id)}
+                className="text-[11px] font-bold text-rose-500"
+              >
+                删除
+              </button>
+            </div>
+
+            {primary.exercises.map((ex, ei) => {
+              const media = mediaFor(ex);
+              return (
+                <div
+                  key={`${ex.exerciseId}-${ei}`}
+                  className={`pt-3 border-t space-y-2 ${theme.isDark ? 'border-white/10' : 'border-slate-100'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-14 h-14 rounded-2xl overflow-hidden shrink-0 ${
+                        theme.isDark ? 'bg-black/40' : 'bg-slate-900'
+                      }`}
+                    >
+                      {media ? (
+                        <img
+                          src={media}
+                          alt=""
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            const fb = mediaFallbackFor(ex);
+                            if (fb && e.currentTarget.dataset.fallback !== '1') {
+                              e.currentTarget.dataset.fallback = '1';
+                              e.currentTarget.src = fb;
+                            }
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                    <input
+                      value={ex.exerciseZh || ex.exerciseName}
+                      onChange={(e) =>
+                        patchExercise(ei, {
+                          exerciseZh: e.target.value,
+                          exerciseName: e.target.value,
+                        })
+                      }
+                      className={`flex-1 min-w-0 bg-transparent font-extrabold text-sm focus:outline-none ${
+                        theme.isDark ? 'text-white' : 'text-slate-900'
+                      }`}
+                    />
+                    <button
+                      onClick={() => {
+                        const exercises = primary.exercises.filter((_, i) => i !== ei);
+                        if (!exercises.length) onDeleteSession(primary.id);
+                        else updatePrimary({ ...primary, exercises });
+                      }}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                        theme.isDark ? 'bg-white/10 text-zinc-400' : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className={`grid grid-cols-[1.4rem_1fr_1fr_1.75rem] gap-1.5 text-[11px] font-bold ${theme.isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    <span />
+                    <span className="text-center">kg</span>
+                    <span className="text-center">次数</span>
+                    <span />
+                  </div>
+
+                  {ex.sets.map((set, si) => (
+                    <div key={set.id} className="grid grid-cols-[1.4rem_1fr_1fr_1.75rem] gap-1.5 items-center">
+                      <span className={`text-xs font-bold ${theme.isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {si + 1}
+                      </span>
+                      <input
+                        inputMode="decimal"
+                        value={set.kg}
+                        onChange={(e) => patchSet(ei, si, { kg: Number(e.target.value) || 0 })}
+                        className={`text-center text-xs font-bold rounded-xl border py-2 focus:outline-none ${
+                          theme.isDark
+                            ? 'bg-white/[0.04] border-white/10 text-white'
+                            : 'bg-white border-slate-200 text-slate-900'
+                        }`}
+                      />
+                      <input
+                        inputMode="numeric"
+                        value={set.reps}
+                        onChange={(e) => patchSet(ei, si, { reps: Number(e.target.value) || 0 })}
+                        className={`text-center text-xs font-bold rounded-xl border py-2 focus:outline-none ${
+                          theme.isDark
+                            ? 'bg-white/[0.04] border-white/10 text-white'
+                            : 'bg-white border-slate-200 text-slate-900'
+                        }`}
+                      />
+                      <button
+                        onClick={() => {
+                          const sets = ex.sets.filter((_, j) => j !== si).map((s, j) => ({ ...s, setNumber: j + 1 }));
+                          patchExercise(ei, { sets });
+                        }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                          theme.isDark ? 'bg-white/10 text-zinc-400' : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => {
+                      const last = ex.sets[ex.sets.length - 1];
+                      patchExercise(ei, {
+                        sets: [...ex.sets, newSet(ex.sets.length + 1, last?.kg ?? 20, last?.reps ?? 8)],
+                      });
+                    }}
+                    className="text-xs font-extrabold"
+                    style={{ color: theme.accentColor }}
+                  >
+                    + 加一组
+                  </button>
+                </div>
+              );
+            })}
+
+            <button
+              onClick={() => {
+                const exercise: WorkoutExercise = {
+                  exerciseId: `custom-${Date.now()}`,
+                  exerciseName: '新动作',
+                  exerciseZh: '新动作',
+                  bodyPart: 'chest',
+                  sets: [newSet(1)],
+                };
+                updatePrimary({ ...primary, exercises: [...primary.exercises, exercise] });
+              }}
+              className={`w-full mt-1 py-3 rounded-2xl text-xs font-bold border flex items-center justify-center gap-1 ${
+                theme.isDark
+                  ? 'border-white/10 text-zinc-200 bg-white/[0.03]'
+                  : 'border-slate-200 text-slate-800 bg-slate-50'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              添加动作
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };

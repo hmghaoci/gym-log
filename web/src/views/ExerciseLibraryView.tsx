@@ -1,8 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Dumbbell, Filter, Eye, ChevronRight, X, Play } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, X, Dumbbell } from 'lucide-react';
 import { RawExercise, WorkoutSession } from '../types/gym';
 import { RAW_EXERCISES } from '../utils/storage';
-import { BODY_PARTS_ZH, EQUIPMENT_ZH, getBodyPartName, getEquipmentName, getMuscleTargetName, getExerciseMediaUrl, getExerciseMediaFallbackUrl } from '../utils/translations';
+import {
+  BODY_PARTS_ZH,
+  EQUIPMENT_ZH,
+  getBodyPartName,
+  getEquipmentName,
+  getExerciseMediaUrl,
+  getExerciseMediaFallbackUrl,
+} from '../utils/translations';
 import { ThemeConfig } from '../types/theme';
 
 interface ExerciseLibraryViewProps {
@@ -11,28 +18,76 @@ interface ExerciseLibraryViewProps {
   theme: ThemeConfig;
 }
 
+const BODY_ORDER = [
+  'chest',
+  'back',
+  'upper legs',
+  'shoulders',
+  'upper arms',
+  'lower legs',
+  'waist',
+  'cardio',
+  'lower arms',
+  'neck',
+];
+
+const BODY_SHORT: Record<string, string> = {
+  chest: '胸',
+  back: '背',
+  'upper legs': '腿',
+  shoulders: '肩',
+  'upper arms': '手臂',
+  'lower legs': '小腿',
+  waist: '腹部',
+  cardio: '有氧',
+  'lower arms': '前臂',
+  neck: '颈',
+};
+
+const EQ_SHORT: { id: string; label: string; title: string }[] = [
+  { id: 'all', label: '常', title: '常用' },
+  { id: 'barbell', label: '杠', title: '杠铃' },
+  { id: 'dumbbell', label: '哑', title: '哑铃' },
+  { id: 'smith machine', label: '史', title: '史密斯' },
+  { id: 'leverage machine', label: '器', title: '器械' },
+  { id: 'cable', label: '绳', title: '绳索' },
+  { id: 'body weight', label: '自', title: '自重' },
+  { id: 'band', label: '带', title: '弹力带' },
+  { id: 'other', label: '其', title: '其他' },
+];
+
+const KNOWN_EQ = new Set(EQ_SHORT.map((e) => e.id).filter((id) => id !== 'all' && id !== 'other'));
+
 export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
   onSelectExerciseToPreview,
   historySessions,
   theme,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBodyPart, setSelectedBodyPart] = useState<string>('all');
-  const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
+  const [selectedBodyPart, setSelectedBodyPart] = useState('chest');
+  const [selectedEquipment, setSelectedEquipment] = useState('all');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 36;
+  const PAGE_SIZE = 48;
 
-  // Track which exercises user has performed in history
-  const performedExerciseIds = useMemo(() => {
-    const ids = new Set<string>();
-    historySessions.forEach((s) => {
-      s.exercises.forEach((e) => ids.add(e.exerciseId));
+  const bodyTabs = useMemo(() => {
+    const present = new Set(RAW_EXERCISES.map((e) => e.b.toLowerCase()));
+    const ordered = BODY_ORDER.filter((k) => present.has(k));
+    Object.keys(BODY_PARTS_ZH).forEach((k) => {
+      if (present.has(k) && !ordered.includes(k)) ordered.push(k);
     });
-    return ids;
-  }, [historySessions]);
+    return ordered;
+  }, []);
 
   const filteredExercises = useMemo(() => {
     let list = RAW_EXERCISES;
+    const body = selectedBodyPart.toLowerCase();
+    list = list.filter((ex) => ex.b.toLowerCase() === body);
+
+    if (selectedEquipment === 'other') {
+      list = list.filter((ex) => !KNOWN_EQ.has(ex.eq.toLowerCase()));
+    } else if (selectedEquipment !== 'all') {
+      list = list.filter((ex) => ex.eq.toLowerCase() === selectedEquipment.toLowerCase());
+    }
 
     const q = searchTerm.trim().toLowerCase();
     if (q) {
@@ -40,104 +95,57 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
         const matchZh = ex.zh && ex.zh.toLowerCase().includes(q);
         const matchEn = ex.n.toLowerCase().includes(q);
         const matchTarget = ex.t && ex.t.toLowerCase().includes(q);
-        const matchBody = ex.b && ex.b.toLowerCase().includes(q);
-        return matchZh || matchEn || matchTarget || matchBody;
+        return matchZh || matchEn || matchTarget;
       });
     }
-
-    if (selectedBodyPart !== 'all') {
-      list = list.filter((ex) => ex.b.toLowerCase() === selectedBodyPart.toLowerCase());
-    }
-
-    if (selectedEquipment !== 'all') {
-      list = list.filter((ex) => ex.eq.toLowerCase() === selectedEquipment.toLowerCase());
-    }
-
     return list;
   }, [searchTerm, selectedBodyPart, selectedEquipment]);
 
   const paginatedList = filteredExercises.slice(0, page * PAGE_SIZE);
   const hasMore = paginatedList.length < filteredExercises.length;
+  const eqTitle =
+    EQ_SHORT.find((e) => e.id === selectedEquipment)?.title ||
+    EQUIPMENT_ZH[selectedEquipment] ||
+    '动作';
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-28 md:pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl font-black tracking-tight ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
-            动作百科指南
-          </h1>
-          <p className={`text-xs mt-1 ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            收录 1,300+ 个标准力量与健身动作，包含精准肌群定位与离线动画图解
-          </p>
-        </div>
-        <div
-          className="text-xs font-mono font-bold px-3 py-1.5 rounded-xl self-start sm:self-auto border"
-          style={{
-            backgroundColor: `${theme.accentColor}15`,
-            color: theme.accentColor,
-            borderColor: `${theme.accentColor}30`,
-          }}
-        >
-          已收录 {RAW_EXERCISES.length} 个动作
-        </div>
-      </div>
-
-      {/* Search and Filters Bar */}
-      <div
-        className={`p-5 rounded-3xl border space-y-4 shadow-xl transition-all duration-300 ${
-          theme.isDark
-            ? 'bg-[#121218]/90 border-white/10'
-            : 'bg-white border-slate-200/90 shadow-slate-200/60'
-        }`}
-      >
-        {/* Search Input */}
-        <div className="relative">
+    <div
+      className={`-mx-4 sm:-mx-6 -mt-5 sm:-mt-6 mb-0 pb-28 md:pb-16 min-h-[calc(100vh-4rem)] flex flex-col ${
+        theme.isDark ? 'bg-[#0a0a0e]' : 'bg-[#f2f3f5]'
+      }`}
+    >
+      <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+        <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input
-            type="text"
+            type="search"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setPage(1);
             }}
-            placeholder="搜索动作中文名、英文名、肌群（如：卧推、深蹲、硬拉、腹肌、bench）..."
-            className={`w-full pl-10 pr-4 py-3 rounded-2xl text-sm focus:outline-none border transition-colors ${
+            placeholder="输入动作名字搜索"
+            className={`w-full pl-10 pr-9 py-2.5 rounded-full text-sm focus:outline-none border ${
               theme.isDark
-                ? 'bg-white/[0.04] border-white/10 text-white placeholder-zinc-500'
-                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                ? 'bg-[#15151c] border-white/10 text-white placeholder-zinc-500'
+                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
             }`}
           />
-          {searchTerm && (
+          {searchTerm ? (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
             >
               <X className="w-4 h-4" />
             </button>
-          )}
+          ) : null}
         </div>
+      </div>
 
-        {/* Muscle / Body Part Quick Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
-          <button
-            onClick={() => {
-              setSelectedBodyPart('all');
-              setPage(1);
-            }}
-            className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all font-semibold ${
-              selectedBodyPart === 'all'
-                ? 'text-slate-950 shadow-md'
-                : theme.isDark
-                ? 'bg-white/[0.03] text-zinc-400 hover:text-white'
-                : 'bg-slate-100 text-slate-600 hover:text-slate-900'
-            }`}
-            style={selectedBodyPart === 'all' ? { backgroundColor: theme.accentColor } : {}}
-          >
-            全部部位 ({RAW_EXERCISES.length})
-          </button>
-          {Object.entries(BODY_PARTS_ZH).map(([key, label]) => {
-            const isSelected = selectedBodyPart === key;
+      <div className="flex-1 min-h-0 grid grid-cols-[4.5rem_1fr_1.75rem] gap-0">
+        <aside className={`overflow-y-auto ${theme.isDark ? 'bg-[#0a0a0e]' : 'bg-[#f2f3f5]'}`}>
+          {bodyTabs.map((key) => {
+            const active = selectedBodyPart === key;
             return (
               <button
                 key={key}
@@ -145,159 +153,144 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
                   setSelectedBodyPart(key);
                   setPage(1);
                 }}
-                className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all font-semibold ${
-                  isSelected
-                    ? 'text-slate-950 shadow-md'
+                className={`w-full text-left px-2.5 py-3 text-xs font-bold transition-colors ${
+                  active
+                    ? theme.isDark
+                      ? 'bg-[#15151c] text-white border-l-[3px]'
+                      : 'bg-white text-slate-900 border-l-[3px]'
                     : theme.isDark
-                    ? 'bg-white/[0.03] text-zinc-400 hover:text-white'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                    ? 'text-zinc-500 hover:text-zinc-300'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
-                style={isSelected ? { backgroundColor: theme.accentColor } : {}}
+                style={active ? { borderColor: theme.accentColor } : undefined}
               >
-                {label}
+                {BODY_SHORT[key] || getBodyPartName(key)}
               </button>
             );
           })}
-        </div>
+        </aside>
 
-        {/* Equipment Selector */}
-        <div className="flex items-center gap-2 pt-1 text-xs text-zinc-400">
-          <span>器械:</span>
-          <select
-            value={selectedEquipment}
-            onChange={(e) => {
-              setSelectedEquipment(e.target.value);
-              setPage(1);
-            }}
-            className={`rounded-xl px-3 py-1 text-xs focus:outline-none border ${
-              theme.isDark
-                ? 'bg-white/[0.04] border-white/10 text-white'
-                : 'bg-slate-50 border-slate-200 text-slate-800'
-            }`}
-          >
-            <option value="all">全部器械</option>
-            {Object.entries(EQUIPMENT_ZH).map(([eqKey, eqLabel]) => (
-              <option key={eqKey} value={eqKey} className={theme.isDark ? 'bg-zinc-900' : 'bg-white'}>
-                {eqLabel}
-              </option>
-            ))}
-          </select>
-
-          <span className="ml-auto text-zinc-500 font-mono text-[11px]">
-            筛选结果: {filteredExercises.length}
-          </span>
-        </div>
-      </div>
-
-      {/* Grid of Exercises */}
-      {filteredExercises.length === 0 ? (
-        <div
-          className={`p-16 text-center rounded-3xl border ${
-            theme.isDark ? 'bg-[#121218]/80 border-white/10' : 'bg-white border-slate-200 shadow-sm'
+        <main
+          className={`overflow-y-auto rounded-tl-2xl px-2.5 pt-3 pb-8 ${
+            theme.isDark ? 'bg-[#121218]' : 'bg-white'
           }`}
         >
-          <Dumbbell className="w-12 h-12 text-zinc-500 mx-auto mb-3 opacity-60" />
-          <h3 className={`text-base font-bold ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
-            未找到相关动作
-          </h3>
-          <p className={`text-xs mt-1 ${theme.isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            请尝试更换搜索词或重置筛选条件
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {paginatedList.map((ex) => {
-            const hasPracticed = performedExerciseIds.has(ex.id);
-            const mediaUrl = getExerciseMediaUrl(ex.img || ex.g);
+          <h2 className={`text-base font-black mb-3 px-0.5 ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+            {eqTitle} · {filteredExercises.length} 个
+          </h2>
 
-            return (
-              <div
-                key={ex.id}
-                onClick={() => onSelectExerciseToPreview(ex)}
-                className={`group p-4 rounded-3xl border cursor-pointer transition-all flex items-center justify-between gap-3 shadow-md ${
-                  theme.isDark
-                    ? 'bg-[#121218]/90 border-white/10 hover:border-white/25 hover:bg-[#161622]'
-                    : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-slate-200/40 hover:bg-slate-50/60'
-                }`}
-              >
-                <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  {/* Thumbnail */}
-                  <div
-                    className={`w-14 h-14 rounded-2xl overflow-hidden shrink-0 border flex items-center justify-center transition-colors ${
-                      theme.isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-100 border-slate-200'
+          {paginatedList.length === 0 ? (
+            <div className="py-16 text-center">
+              <Dumbbell className="w-10 h-10 mx-auto mb-2 text-zinc-400 opacity-50" />
+              <p className={`text-xs ${theme.isDark ? 'text-zinc-500' : 'text-slate-500'}`}>
+                该分类下暂无动作，试试右侧换器械
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {paginatedList.map((ex) => {
+                const mediaUrl = getExerciseMediaUrl(ex.g || ex.img);
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => onSelectExerciseToPreview(ex)}
+                    className={`text-left rounded-xl overflow-hidden border transition-all ${
+                      theme.isDark
+                        ? 'bg-[#16161e] border-white/10 hover:border-white/25'
+                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
                     }`}
                   >
-                    {mediaUrl ? (
-                      <img
-                        src={mediaUrl}
-                        alt={ex.zh || ex.n}
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          const fb = getExerciseMediaFallbackUrl(ex.img || ex.g)
-                          if (fb && e.currentTarget.dataset.fallback !== '1') {
-                            e.currentTarget.dataset.fallback = '1'
-                            e.currentTarget.src = fb
-                          }
-                        }}
-                      />
-                    ) : (
-                      <Dumbbell className="w-6 h-6 text-zinc-500" />
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3
-                        className={`font-bold text-sm truncate transition-colors ${
-                          theme.isDark ? 'text-white' : 'text-slate-900'
-                        }`}
+                    <div className="relative aspect-square bg-[#0b1220]">
+                      <span
+                        className="absolute left-1.5 top-1.5 z-10 text-[10px] font-extrabold px-1.5 py-0.5 rounded text-white"
+                        style={{ backgroundColor: '#3b82f6' }}
                       >
-                        {ex.zh || ex.n}
-                      </h3>
-                      {hasPracticed && (
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: theme.accentColor }}
-                          title="曾练过"
+                        3D
+                      </span>
+                      {mediaUrl ? (
+                        <img
+                          src={mediaUrl}
+                          alt={ex.zh || ex.n}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            const fb = getExerciseMediaFallbackUrl(ex.g || ex.img);
+                            if (fb && e.currentTarget.dataset.fallback !== '1') {
+                              e.currentTarget.dataset.fallback = '1';
+                              e.currentTarget.src = fb;
+                            }
+                          }}
                         />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Dumbbell className="w-8 h-8 text-zinc-600" />
+                        </div>
                       )}
                     </div>
-                    <div className="text-xs text-zinc-400 truncate mt-0.5">{ex.n}</div>
-                    <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-1 truncate">
-                      <span>{getBodyPartName(ex.b)}</span>
-                      <span>·</span>
-                      <span>{getEquipmentName(ex.eq)}</span>
-                      <span>·</span>
-                      <span style={{ color: theme.accentColor }}>{getMuscleTargetName(ex.t)}</span>
+                    <div className="p-2.5 space-y-1.5">
+                      <div className={`text-xs font-extrabold leading-snug line-clamp-2 ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {ex.zh || ex.n}
+                      </div>
+                      <div className={`text-[10px] ${theme.isDark ? 'text-zinc-500' : 'text-slate-500'}`}>
+                        {getBodyPartName(ex.b)} · {getEquipmentName(ex.eq)}
+                      </div>
+                      <div
+                        className={`w-full text-center text-[11px] font-bold py-1.5 rounded-lg ${
+                          theme.isDark ? 'bg-white/[0.06] text-zinc-400' : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        查看动作要点
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-                <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-              </div>
+          {hasMore ? (
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              className="w-full mt-4 py-3 rounded-xl text-xs font-bold"
+              style={{ color: theme.accentColor }}
+            >
+              加载更多
+            </button>
+          ) : null}
+        </main>
+
+        <nav
+          className={`overflow-y-auto flex flex-col items-center gap-0.5 pt-2 pb-8 border-l ${
+            theme.isDark ? 'bg-[#121218] border-white/5' : 'bg-white border-slate-100'
+          }`}
+        >
+          {EQ_SHORT.map((eq) => {
+            const active = selectedEquipment === eq.id;
+            return (
+              <button
+                key={eq.id}
+                title={eq.title}
+                onClick={() => {
+                  setSelectedEquipment(eq.id);
+                  setPage(1);
+                }}
+                className={`w-7 min-h-7 text-xs font-bold ${
+                  active
+                    ? 'font-black'
+                    : theme.isDark
+                    ? 'text-zinc-500'
+                    : 'text-slate-400'
+                }`}
+                style={active ? { color: theme.accentColor } : undefined}
+              >
+                {eq.label}
+              </button>
             );
           })}
-        </div>
-      )}
-
-      {/* Pagination Load More */}
-      {hasMore && (
-        <div className="text-center pt-2">
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            className={`px-6 py-3 rounded-2xl text-xs font-bold border transition-colors ${
-              theme.isDark
-                ? 'bg-white/[0.04] hover:bg-white/[0.08] text-white border-white/10'
-                : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200 shadow-sm'
-            }`}
-          >
-            加载更多动作 ({filteredExercises.length - paginatedList.length} 个剩余)
-          </button>
-        </div>
-      )}
+        </nav>
+      </div>
     </div>
   );
 };

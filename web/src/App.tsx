@@ -516,6 +516,9 @@ export default function App() {
             onDeleteSession={(id) => {
               setSessions((prev) => prev.filter((s) => s.id !== id));
             }}
+            onUpdateSession={(session) => {
+              setSessions((prev) => prev.map((s) => (s.id === session.id ? session : s)));
+            }}
             onStartEmptyWorkout={handleStartEmptyWorkout}
             onSeedSampleData={handleSeedSampleData}
             theme={theme}
