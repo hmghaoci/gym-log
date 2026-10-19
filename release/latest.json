@@ -1,6 +1,6 @@
 {
-  "version": "1.9.0",
-  "url": "https://github.com/hmghaoci/gym-log/releases/download/v1.9.0/gym-log-web.zip",
-  "checksum": "650d4640652e11e6375d04af2563b02fdde34ede225c3059a77dae622e8af67f",
-  "apk": "https://github.com/hmghaoci/gym-log/releases/download/v1.9.0/gym-log-1.9.0.apk"
+  "version": "1.9.1",
+  "url": "https://github.com/hmghaoci/gym-log/releases/download/v1.9.1/gym-log-web.zip",
+  "checksum": "0045a8818af5d87f8c543d4497d7956d186e7f52dff03f11608240b5e488fb25",
+  "apk": "https://github.com/hmghaoci/gym-log/releases/download/v1.9.1/gym-log-1.9.1.apk"
 }

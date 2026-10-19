@@ -2,7 +2,7 @@
 
 离线优先的健身记录 App（Android / 浏览器）。按周计划开练、记重量与次数、组间休息，历史与进步都留在本机。
 
-当前版本：**1.9.0**。远程更新清单见 [`release/latest.json`](release/latest.json)，Release：https://github.com/hmghaoci/gym-log/releases/tag/v1.9.0
+当前版本：**1.9.1**。远程更新清单见 [`release/latest.json`](release/latest.json)，Release：https://github.com/hmghaoci/gym-log/releases/tag/v1.9.1
 
 界面源码在 `web/`（React + Vite + Tailwind），构建产物输出到 `www/`，由 Capacitor 打成安卓包。动作名称、部位、中文步骤与媒体来自 [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset)；动画媒体 © [Gym visual](https://gymvisual.com/)，已打进安装包，**离线可看缩略图与动图**。
 

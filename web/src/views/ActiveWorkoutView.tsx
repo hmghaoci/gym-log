@@ -3,7 +3,7 @@ import { Play, Pause, Plus, Trash2, Check, Clock, Flame, Dumbbell, Sparkles, Che
 import { RawExercise, SetType, WorkoutExercise, WorkoutSession, WorkoutSet } from '../types/gym';
 import { formatDurationTimer, formatVolume } from '../utils/calculations';
 import { playSetCompleteSound } from '../utils/audio';
-import { getBodyPartName, getMuscleTargetName } from '../utils/translations';
+import { getBodyPartName, getMuscleTargetName, getExerciseMediaUrl, getExerciseMediaFallbackUrl } from '../utils/translations';
 import { EXERCISE_MAP, getLastPerformance } from '../utils/storage';
 import { ThemeConfig } from '../types/theme';
 
@@ -240,30 +240,61 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     theme.isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-100'
                   }`}
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="w-7 h-7 rounded-xl flex items-center justify-center font-mono text-xs font-bold shrink-0 text-slate-950"
-                        style={{ backgroundColor: theme.accentColor }}
-                      >
-                        {exIdx + 1}
-                      </span>
-                      <h2 className={`text-base font-bold tracking-tight truncate ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {ex.exerciseZh || ex.exerciseName}
-                      </h2>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 ml-9 truncate">
-                      <span className="truncate">{ex.exerciseName}</span>
-                      <span>·</span>
-                      <span>{getBodyPartName(ex.bodyPart)}</span>
-                      {lastPerf && (
-                        <>
-                          <span>·</span>
-                          <span className="text-amber-400 font-mono text-[11px] font-semibold">
-                            上次: {lastPerf.sets[0]?.kg}kg × {lastPerf.sets[0]?.reps}次
-                          </span>
-                        </>
-                      )}
+                  <div className="min-w-0 flex items-center gap-3 flex-1">
+                    {(() => {
+                      const media = getExerciseMediaUrl(rawEx?.g || rawEx?.img);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => rawEx && onPreviewExercise(rawEx)}
+                          className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 bg-[#0b1220] border border-white/10"
+                          title="查看 3D 动作示意"
+                          disabled={!rawEx}
+                        >
+                          {media ? (
+                            <img
+                              src={media}
+                              alt=""
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const fb = getExerciseMediaFallbackUrl(rawEx?.g || rawEx?.img);
+                                if (fb && e.currentTarget.dataset.fallback !== '1') {
+                                  e.currentTarget.dataset.fallback = '1';
+                                  e.currentTarget.src = fb;
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Dumbbell className="w-6 h-6 text-zinc-500" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })()}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="w-7 h-7 rounded-xl flex items-center justify-center font-mono text-xs font-bold shrink-0 text-slate-950"
+                          style={{ backgroundColor: theme.accentColor }}
+                        >
+                          {exIdx + 1}
+                        </span>
+                        <h2 className={`text-base font-bold tracking-tight truncate ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {ex.exerciseZh || ex.exerciseName}
+                        </h2>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 truncate">
+                        <span>{getBodyPartName(ex.bodyPart)}</span>
+                        {lastPerf && (
+                          <>
+                            <span>·</span>
+                            <span className="text-amber-400 font-mono text-[11px] font-semibold">
+                              上次: {lastPerf.sets[0]?.kg}kg × {lastPerf.sets[0]?.reps}次
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
